@@ -7,14 +7,18 @@ services:
       DATABASE_PORT: 3306
       DATABASE_NAME: ${MYSQL_DATABASE:-tickets_system}
       DATABASE_USER: ${MYSQL_USER:-tickets_app}
-      DATABASE_PASSWORD: ${MYSQL_PASSWORD:?Copy .env.example to .env}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD:?Run scripts/Initialize-Env.ps1 first}
       CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-5173}","http://127.0.0.1:${FRONTEND_PORT:-5173}"]'
       WATCHFILES_FORCE_POLLING: "true"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_HOURS: ${SESSION_HOURS:-8}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend/app:/app/app
       - ./backend/tests:/app/tests
+      - ./backend/migrations:/app/migrations
+      - ./backend/alembic.ini:/app/alembic.ini
     depends_on:
       db:
         condition: service_healthy
@@ -53,8 +57,8 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-tickets_system}
       MYSQL_USER: ${MYSQL_USER:-tickets_app}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Copy .env.example to .env}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Copy .env.example to .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run scripts/Initialize-Env.ps1 first}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run scripts/Initialize-Env.ps1 first}
     ports:
       - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
     volumes:

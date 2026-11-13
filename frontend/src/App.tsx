@@ -1,48 +1,46 @@
 import { useEffect, useState } from 'react'
-import { checkHealth } from './api'
-
-type ApiStatus = 'checking' | 'online' | 'offline'
-
-const labels: Record<ApiStatus, string> = {
-  checking: 'Verificando conexão com a API…',
-  online: 'API conectada',
-  offline: 'API indisponível. Verifique se o backend está iniciado.',
-}
+import { ApiError } from './api'
+import { getCurrentUser, logout } from './auth'
+import type { User } from './auth'
+import AuthForm from './components/AuthForm'
+import Home from './components/Home'
 
 export default function App() {
-  const [status, setStatus] = useState<ApiStatus>('checking')
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    const controller = new AbortController()
     let active = true
-    const timeout = window.setTimeout(() => controller.abort(), 5000)
-    setStatus('checking')
-    checkHealth(controller.signal)
-      .then(() => { if (active) setStatus('online') })
-      .catch(() => { if (active) setStatus('offline') })
-      .finally(() => window.clearTimeout(timeout))
-    return () => {
-      active = false
-      window.clearTimeout(timeout)
-      controller.abort()
-    }
+    setLoading(true)
+    setLoadError('')
+    getCurrentUser().then(value => { if (active) setUser(value) }).catch(failure => {
+      if (active && !(failure instanceof ApiError && failure.status === 401)) {
+        setLoadError(failure instanceof Error ? failure.message : 'Não foi possível verificar sua sessão.')
+      }
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   }, [attempt])
 
-  return (
-    <main>
-      <header><span className="logo">TS</span><strong>Tickets System</strong><span className="version">v0</span></header>
-      <section>
-        <p className="eyebrow">SUPORTE INTERNO</p>
-        <h1>Um lugar para cada solicitação.</h1>
-        <p className="intro">Base inicial do portal de suporte. O próximo passo é implementar a criação e o acompanhamento dos tickets.</p>
-        <div className="connection" role="status" aria-live="polite">
-          <span className={`dot ${status}`} aria-hidden="true" />
-          <span>{labels[status]}</span>
-        </div>
-        <button onClick={() => setAttempt(value => value + 1)} disabled={status === 'checking'}>Verificar conexão</button>
-      </section>
-      <footer>React · FastAPI · MySQL</footer>
-    </main>
-  )
+  async function signOut() {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try { await logout(); setUser(null) }
+    catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível sair.') }
+    finally { setBusy(false) }
+  }
+
+  return <main>
+    <header><span className="logo">TS</span><strong>Tickets System</strong><span className="version">Suporte interno</span></header>
+    {loading ? <section role="status">Verificando sua sessão…</section>
+      : loadError ? <section><h1>Vamos tentar novamente?</h1><p role="alert" className="error">{loadError}</p>
+          <button onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></section>
+      : user ? <Home user={user} onLogout={signOut} busy={busy} error={error} />
+      : <AuthForm onAuthenticated={value => { setError(''); setUser(value) }} />}
+    <footer>Tickets System · Portal de suporte da equipe</footer>
+  </main>
 }

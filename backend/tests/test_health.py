@@ -47,6 +47,5 @@ def test_openapi_preserves_health_routes():
         response = client.get("/openapi.json")
     assert response.status_code == 200
     paths = response.json()["paths"]
-    assert set(paths) == {"/api/health", "/api/health/db"}
-    for path in paths.values():
-        assert path["get"]["tags"] == ["health"]
+    for path in ("/api/health", "/api/health/db"):
+        assert paths[path]["get"]["tags"] == ["health"]

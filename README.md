@@ -6,6 +6,7 @@ Portal de tickets de suporte interno para a avaliação técnica de Full-Stack D
 
 Estrutura inicial com React + TypeScript + Vite, FastAPI e MySQL. Inclui comunicação
 frontend/API, verificação de saúde da API e do banco e configuração do ambiente.
+Login, cadastro com perfil e sessões persistentes estão implementados.
 As funcionalidades de tickets ainda não estão implementadas.
 
 ## Executar tudo com Docker
@@ -13,10 +14,10 @@ As funcionalidades de tickets ainda não estão implementadas.
 Pré-requisito: Docker Desktop instalado e iniciado, usando containers Linux e
 Docker Compose. Não é necessário instalar Python, Node.js ou MySQL na máquina.
 
-Na raiz do projeto, no PowerShell, copie o exemplo apenas se ainda não tiver `.env`:
+Na raiz do projeto, no PowerShell, gere as credenciais locais:
 
 ```powershell
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
+.\scripts\Initialize-Env.ps1
 docker compose up --build -d
 docker compose ps
 ```
@@ -33,10 +34,11 @@ o frontend. A primeira execução pode demorar para baixar imagens e dependênci
 | MySQL pelo host | 127.0.0.1:3306 |
 
 A tela inicial verifica a API. Para verificar também o banco, abra `/api/health/db`.
-Nenhuma tabela é criada nesta etapa.
+As migrações criam as tabelas de usuários e sessões antes de iniciar a API.
 
 As configurações do Docker vêm do `.env` da raiz; não é necessário copiar os
-exemplos de `backend` e `frontend`. O backend usa `db:3306` na rede interna e o
+exemplos de `backend` e `frontend`. O script também sincroniza `backend/.env`
+para execução local. O backend no Docker usa `db:3306` na rede interna e o
 navegador acessa a API por `localhost`. Os arquivos `.env` locais não entram nas imagens.
 
 Se ainda houver servidores locais rodando, encerre-os com `Ctrl+C` antes de subir
@@ -78,9 +80,9 @@ docker compose down
 
 O volume `mysql_data` preserva os dados entre reinicializações. Não use
 `docker compose down -v` se quiser manter os dados.
-As senhas do exemplo são exclusivamente para desenvolvimento local. As variáveis
-de inicialização do MySQL só são aplicadas quando o volume está vazio; alterar
-uma senha no `.env` não altera usuários já criados no banco.
+Os exemplos não contêm senhas. O script gera senhas aleatórias e mantém valores
+já configurados. As variáveis de inicialização do MySQL só são aplicadas quando
+o volume está vazio; para trocar senhas existentes use a rotação descrita abaixo.
 
 ## Verificações pelo Docker
 
@@ -105,8 +107,7 @@ Para executar Python e Node fora do Docker, use Python 3.14 e Node.js 22.12+.
 Suba somente o banco e copie os exemplos locais apenas se os arquivos não existirem:
 
 ```powershell
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
-if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
+.\scripts\Initialize-Env.ps1
 if (!(Test-Path frontend/.env)) { Copy-Item frontend/.env.example frontend/.env }
 docker compose up -d db
 ```
@@ -117,6 +118,7 @@ No primeiro terminal:
 cd backend
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m alembic upgrade head
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
@@ -167,7 +169,7 @@ compose.yaml        Frontend, API, MySQL e volume persistente
 - Docker Compose fornece um ambiente de desenvolvimento completo. Vite, reload
   do Uvicorn e dependências de teste estão incluídos; esta configuração é para
   desenvolvimento local. Uma implantação de produção requer outra configuração.
-- Não há autenticação nesta v0.
+- Login e cadastro usam sessões no MySQL, cookie HttpOnly e senhas Argon2id.
 - Dependências Python usam intervalos de versões; gerar um lock e automatizar CI
   são melhorias antes da entrega final. O frontend usa `package-lock.json` e `npm ci`.
 
@@ -190,3 +192,112 @@ conforme os requisitos de cada funcionalidade.
 Seguimos SDD: requisito → especificação e plano com critérios de aceite → aprovação
 do usuário → implementação → testes e revisão dos critérios. As orientações estão
 em `AGENTS.md`, e a primeira refatoração está em `docs/specs/001-backend-architecture.md`.
+
+## Login e cadastro
+
+Após atualizar o código, reconstrua os serviços para instalar as novas dependências:
+
+```powershell
+docker compose up --build -d
+```
+
+O backend executa `alembic upgrade head` antes de iniciar o Uvicorn. Se uma migração
+falhar, consulte `docker compose logs backend`; a API só inicia após a migração.
+Os dados existentes do MySQL são preservados. Para novas migrações, reconstrua a
+imagem; reinicie o backend para executar as migrações pendentes.
+
+Abra http://localhost:5173 e clique em **Cadastre-se**. Informe nome, e-mail, senha
+(de 12 a 128 caracteres), confirmação e perfil **Funcionário** ou **Suporte**.
+O cadastro inicia a sessão automaticamente. Você também pode sair e entrar com
+seu e-mail e senha. A sessão é restaurada ao recarregar a página e expira após
+8 horas por padrão. Ainda não há telas de tickets nesta etapa.
+
+A escolha livre de suporte é uma simplificação aprovada para este protótipo:
+qualquer pessoa pode criar uma conta com esse perfil. Antes de uso real, a
+atribuição desse perfil precisa ser controlada. Todos os usuários pertencem à
+mesma empresa; não há entidade de empresa nem convites.
+
+| Método | Rota | Resultado |
+| --- | --- | --- |
+| POST | `/api/auth/register` | Cria usuário no perfil escolhido e inicia sessão (201) |
+| POST | `/api/auth/login` | Valida credenciais e inicia/renova sessão (200) |
+| GET | `/api/auth/me` | Retorna o usuário autenticado (200 ou 401) |
+| POST | `/api/auth/logout` | Revoga a sessão e remove o cookie (204) |
+
+Cadastro recebe `name`, `email`, `password`, `password_confirmation` e `role`
+(`employee` ou `support`). Login recebe `email` e `password`. E-mails são
+normalizados para minúsculas e não podem repetir. Senhas e hashes não aparecem
+nas respostas, inclusive nos erros de validação.
+
+Requisições POST exigem o header `X-CSRF-Protection: 1`, também disponível nos
+parâmetros do Swagger. O frontend já envia esse header e o cookie com
+`credentials: include`. CORS aceita credenciais apenas das origens configuradas.
+Use consistentemente **localhost** para frontend e API; não misture localhost
+com 127.0.0.1, pois são hosts diferentes para cookies e SameSite.
+
+`SESSION_HOURS=8` configura a duração da sessão. `COOKIE_SECURE=false` permite o
+HTTP local; em produção com HTTPS use `COOKIE_SECURE=true`. Apenas o hash do token
+fica no banco; logout revoga o acesso mesmo se o cookie antigo for reutilizado.
+Sessões expiradas são rejeitadas; uma rotina periódica de limpeza pode ser
+adicionada posteriormente.
+
+Os módulos seguem a arquitetura existente: endpoints em `api/routes/endpoints/auth.py`,
+contratos em `schemas/auth.py`, entidades em `models/auth.py`, regras em
+`services/auth.py`, primitivas de segurança em `core/security.py` e dependências
+de autenticação/perfil em `api/dependencies.py`. As permissões dos tickets serão
+aplicadas quando os endpoints de tickets forem implementados.
+
+A especificação aprovada está em `docs/specs/002-authentication.md`. Testes usam
+SQLite isolado para os fluxos da API e para upgrade/downgrade das migrações; a
+integração com MySQL deve ser validada com o Compose em execução. Recuperação de
+senha, confirmação de e-mail, limitação de tentativas e controle da atribuição
+de perfil são evoluções para uso real.
+
+## Credenciais do banco
+
+`.env.example` e `backend/.env.example` possuem senhas vazias. Não coloque senhas
+reais nesses arquivos. O backend exige `DATABASE_PASSWORD` não vazia; não há
+senha padrão no código. O Compose exige as duas senhas do MySQL.
+
+Para a primeira configuração, execute na raiz:
+
+```powershell
+.\scripts\Initialize-Env.ps1
+docker compose up --build -d
+```
+
+O script usa o gerador criptográfico do sistema para criar duas senhas independentes
+de 256 bits no `.env` e sincroniza a conexão local em `backend/.env`. Não exibe
+senhas e não troca valores já preenchidos. `.env`, `backend/.env` e arquivos
+`.env.*` estão ignorados, com exceção dos `.env.example` versionados.
+
+### Trocar credenciais de um banco existente
+
+Mantenha o `.env` com as credenciais que ainda funcionam, abra o Docker Desktop
+e inicie o banco existente antes de executar a rotação:
+
+```powershell
+docker compose up -d db
+.\scripts\Rotate-DatabaseCredentials.ps1
+docker compose up --build -d --force-recreate
+Invoke-RestMethod http://localhost:8000/api/health/db
+```
+
+A rotação preserva o volume e os dados. Ela gera as próximas senhas em
+`.env.rotation` (ignorado), atualiza as contas MySQL do usuário da aplicação e
+root, verifica o acesso, e só então atualiza `.env` e `backend/.env`. O Compose
+precisa recriar os containers para receber as novas variáveis de ambiente.
+Durante esse intervalo a API pode ficar temporariamente sem acesso ao banco.
+
+Se houver falha de acesso ao Docker, o `.env` ativo fica inalterado e as próximas
+senhas permanecem em `.env.rotation`. Execute o mesmo script no seu terminal
+quando o Docker estiver acessível. Não exclua o arquivo pendente até finalizar:
+ele também permite retomar uma rotação interrompida após o MySQL aceitar as novas
+senhas. O script não exibe senhas nem as envia como argumentos de processos.
+Evite executar `docker compose config` sem `--quiet`, pois a saída completa
+expõe os valores resolvidos do ambiente.
+
+Senhas presentes em commits anteriores devem ser consideradas públicas. Um novo
+commit não apaga esses commits; trocar as senhas invalida as credenciais antigas.
+Não é necessário reescrever o histórico para concluir essa rotação. A especificação
+da correção está em `docs/specs/003-database-credentials.md`.
