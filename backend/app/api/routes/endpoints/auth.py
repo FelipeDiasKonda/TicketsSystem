@@ -37,7 +37,7 @@ def register(data: RegisterRequest, request: Request, response: Response, db: Da
     try:
         user = register_user(db, data)
     except DuplicateEmailError:
-        raise HTTPException(status_code=409, detail="Este e-mail já está cadastrado.") from None
+        raise HTTPException(status_code=409, detail="This email is already registered.") from None
     settings = get_settings()
     token = create_session(
         db,
@@ -54,7 +54,7 @@ def login(data: LoginRequest, request: Request, response: Response, db: Database
     try:
         user = authenticate_user(db, str(data.email), data.password)
     except InvalidCredentialsError:
-        raise HTTPException(status_code=401, detail="E-mail ou senha inválidos.") from None
+        raise HTTPException(status_code=401, detail="Invalid email or password.") from None
     settings = get_settings()
     token = create_session(
         db,

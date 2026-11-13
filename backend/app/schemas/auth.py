@@ -26,7 +26,7 @@ class RegisterRequest(BaseModel):
     @model_validator(mode="after")
     def passwords_match(self):
         if self.password != self.password_confirmation:
-            raise ValueError("As senhas devem ser iguais.")
+            raise ValueError("Passwords must match.")
         return self
 
 

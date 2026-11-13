@@ -20,13 +20,13 @@ def require_csrf(
     if csrf_protection != "1" or (
         origin is not None and origin not in get_settings().cors_origins
     ):
-        raise HTTPException(status_code=403, detail="Requisição não autorizada.")
+        raise HTTPException(status_code=403, detail="Request not authorized.")
 
 
 def get_current_user(request: Request, db: Database) -> User:
     user = find_session_user(db, request.cookies.get(get_settings().session_cookie_name))
     if user is None:
-        raise HTTPException(status_code=401, detail="Faça login para continuar.")
+        raise HTTPException(status_code=401, detail="Please log in to continue.")
     return user
 
 
@@ -35,5 +35,5 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def require_support(user: CurrentUser) -> User:
     if user.role != UserRole.SUPPORT:
-        raise HTTPException(status_code=403, detail="Acesso restrito ao suporte.")
+        raise HTTPException(status_code=403, detail="Access restricted to support staff.")
     return user
