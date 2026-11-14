@@ -25,7 +25,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     const message = typeof data?.detail === 'string'
       ? data.detail
       : response.status === 422
-        ? 'Confira os campos: nome, e-mail, perfil e senha de 12 a 128 caracteres.'
+        ? 'Confira os dados informados e tente novamente.'
         : 'Não foi possível concluir a solicitação. Tente novamente.'
     throw new ApiError(response.status, message)
   }
