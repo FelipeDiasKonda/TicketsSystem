@@ -39,7 +39,7 @@ export default function App() {
     {loading ? <section role="status">Verificando sua sessão…</section>
       : loadError ? <section><h1>Vamos tentar novamente?</h1><p role="alert" className="error">{loadError}</p>
           <button onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></section>
-      : user ? <Home user={user} onLogout={signOut} busy={busy} error={error} />
+      : user ? <Home user={user} onLogout={signOut} busy={busy} error={error} onSessionExpired={() => setUser(null)} />
       : <AuthForm onAuthenticated={value => { setError(''); setUser(value) }} />}
     <footer>Tickets System · Portal de suporte da equipe</footer>
   </main>

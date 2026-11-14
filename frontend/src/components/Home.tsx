@@ -1,34 +1,50 @@
-import { useEffect, useState } from 'react'
-import { checkHealth } from '../api'
+import { useState } from 'react'
 import { roleLabels } from '../auth'
 import type { User } from '../auth'
+import type { Ticket } from '../tickets'
+import TicketForm from './TicketForm'
+import TicketList from './TicketList'
 
-type Props = { user: User; onLogout: () => Promise<void>; busy: boolean; error: string }
+type Props = {
+  user: User
+  onLogout: () => Promise<void>
+  busy: boolean
+  error: string
+  onSessionExpired: () => void
+}
 
-export default function Home({ user, onLogout, busy, error }: Props) {
-  const [online, setOnline] = useState<boolean | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 5000)
-    checkHealth(controller.signal).then(() => {
-      if (!controller.signal.aborted) setOnline(true)
-    }).catch(() => {
-      if (!controller.signal.aborted) setOnline(false)
-    }).finally(() => window.clearTimeout(timeout))
-    return () => { window.clearTimeout(timeout); controller.abort() }
-  }, [])
+export default function Home({ user, onLogout, busy, error, onSessionExpired }: Props) {
+  const [showForm, setShowForm] = useState(false)
+  const [page, setPage] = useState(1)
+  const [refresh, setRefresh] = useState(0)
+  const [success, setSuccess] = useState('')
 
-  return <section className="home-card">
-    <p className="eyebrow">PORTAL DE SUPORTE</p>
-    <h1>Olá, {user.name}.</h1>
-    <p className="intro">Você está conectado como <strong>{roleLabels[user.role]}</strong>.</p>
-    <p className="muted">{user.email}</p>
-    <div className="connection" role="status">
-      <span className={`dot ${online === true ? 'online' : online === false ? 'offline' : ''}`} />
-      {online === null ? 'Verificando API…' : online ? 'API conectada' : 'API indisponível'}
+  function created(ticket: Ticket) {
+    setShowForm(false)
+    setPage(1)
+    setRefresh(value => value + 1)
+    setSuccess(`Ticket #${ticket.id} criado com sucesso.`)
+  }
+
+  return <>
+    <div className="account-bar">
+      <p><strong>{user.name}</strong><span className="account-role">{roleLabels[user.role]}</span></p>
+      <button className="secondary" onClick={() => void onLogout()} disabled={busy}>{busy ? 'Saindo…' : 'Sair da conta'}</button>
     </div>
-    <p className="muted">Sua conta está pronta. O gerenciamento de tickets será adicionado na próxima etapa.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    <button onClick={() => void onLogout()} disabled={busy}>{busy ? 'Saindo…' : 'Sair da conta'}</button>
-  </section>
+    <section className="tickets-panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">PORTAL DE SUPORTE</p>
+          <h1>{user.role === 'support' ? 'Todos os tickets' : 'Meus tickets'}</h1>
+          <p className="muted">{user.role === 'support'
+            ? 'Acompanhe as solicitações da equipe, incluindo as suas.'
+            : 'Abra uma solicitação e acompanhe seus tickets.'}</p>
+        </div>
+        {!showForm && <button onClick={() => { setSuccess(''); setShowForm(true) }}>+ Novo ticket</button>}
+      </div>
+      {success && <p role="status" className="success">{success}</p>}
+      {showForm && <TicketForm onCreated={created} onCancel={() => setShowForm(false)} onSessionExpired={onSessionExpired} />}
+      <TicketList page={page} refresh={refresh} onPageChange={setPage} onSessionExpired={onSessionExpired} />
+    </section>
+  </>
 }

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     session_cookie_name: str = "tickets_session"
     session_hours: int = Field(default=8, ge=1, le=168)
     cookie_secure: bool = False
+    seed_password: SecretStr | None = None
 
     @field_validator("database_password", mode="before")
     @classmethod

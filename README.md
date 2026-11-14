@@ -7,7 +7,7 @@ Portal de tickets de suporte interno para a avaliação técnica de Full-Stack D
 Estrutura inicial com React + TypeScript + Vite, FastAPI e MySQL. Inclui comunicação
 frontend/API, verificação de saúde da API e do banco e configuração do ambiente.
 Login, cadastro com perfil e sessões persistentes estão implementados.
-As funcionalidades de tickets ainda não estão implementadas.
+Criação e listagem paginada de tickets estão implementadas para funcionários e suporte.
 
 ## Executar tudo com Docker
 
@@ -34,7 +34,7 @@ o frontend. A primeira execução pode demorar para baixar imagens e dependênci
 | MySQL pelo host | 127.0.0.1:3306 |
 
 A tela inicial verifica a API. Para verificar também o banco, abra `/api/health/db`.
-As migrações criam as tabelas de usuários e sessões antes de iniciar a API.
+As migrações criam as tabelas de usuários, sessões e tickets antes de iniciar a API.
 
 As configurações do Docker vêm do `.env` da raiz; não é necessário copiar os
 exemplos de `backend` e `frontend`. O script também sincroniza `backend/.env`
@@ -175,11 +175,9 @@ compose.yaml        Frontend, API, MySQL e volume persistente
 
 ## Próximas etapas
 
-1. Modelar tickets e histórico de status, com migrações Alembic.
-2. Criar tickets com título, descrição, categoria e prioridade.
-3. Listar com filtros de status, categoria e prioridade e ordenação.
-4. Exigir transições: Aberto → Em andamento → Resolvido → Fechado.
-5. Exibir detalhes e histórico; testar regras e integração com MySQL.
+1. Adicionar filtros de status, categoria e prioridade e ordenação configurável.
+2. Implementar transições: Aberto → Em andamento → Resolvido → Fechado.
+3. Exibir detalhes e histórico de status; testar as regras e a integração com MySQL.
 
 ## Arquitetura e fluxo SDD
 
@@ -210,7 +208,7 @@ Abra http://localhost:5173 e clique em **Cadastre-se**. Informe nome, e-mail, se
 (de 12 a 128 caracteres), confirmação e perfil **Funcionário** ou **Suporte**.
 O cadastro inicia a sessão automaticamente. Você também pode sair e entrar com
 seu e-mail e senha. A sessão é restaurada ao recarregar a página e expira após
-8 horas por padrão. Ainda não há telas de tickets nesta etapa.
+8 horas por padrão. Após entrar, a tela inicial apresenta os tickets e a opção de abrir uma solicitação.
 
 A escolha livre de suporte é uma simplificação aprovada para este protótipo:
 qualquer pessoa pode criar uma conta com esse perfil. Antes de uso real, a
@@ -244,8 +242,8 @@ adicionada posteriormente.
 Os módulos seguem a arquitetura existente: endpoints em `api/routes/endpoints/auth.py`,
 contratos em `schemas/auth.py`, entidades em `models/auth.py`, regras em
 `services/auth.py`, primitivas de segurança em `core/security.py` e dependências
-de autenticação/perfil em `api/dependencies.py`. As permissões dos tickets serão
-aplicadas quando os endpoints de tickets forem implementados.
+de autenticação/perfil em `api/dependencies.py`. A listagem aplica o escopo do usuário no backend: funcionários veem apenas seus
+próprios tickets; suporte vê todos, incluindo os que ele abriu.
 
 A especificação aprovada está em `docs/specs/002-authentication.md`. Testes usam
 SQLite isolado para os fluxos da API e para upgrade/downgrade das migrações; a
@@ -301,3 +299,92 @@ Senhas presentes em commits anteriores devem ser consideradas públicas. Um novo
 commit não apaga esses commits; trocar as senhas invalida as credenciais antigas.
 Não é necessário reescrever o histórico para concluir essa rotação. A especificação
 da correção está em `docs/specs/003-database-credentials.md`.
+
+## Criação e listagem de tickets
+
+Atualize os serviços para aplicar a migração `0002`:
+
+```powershell
+docker compose up --build -d
+```
+
+Após fazer login, clique em **Novo ticket**. Tanto Funcionário quanto Suporte
+podem abrir uma solicitação. Preencha título (3-150 caracteres), descrição
+(10-5.000), categoria (TI, Instalações ou RH) e prioridade (Baixa, Média, Alta
+ou Urgente). Após salvar, uma confirmação mostra o número do ticket e a primeira
+página da listagem é atualizada.
+
+O backend define o solicitante pela sessão, status inicial **Aberto** e data de
+criação em UTC. Esses campos não podem ser informados pelo cliente. Funcionários
+visualizam apenas seus próprios tickets; suporte visualiza todos, inclusive os
+que ele abriu. A tabela exibe número, título, solicitante, categoria, prioridade,
+status e data de criação no horário local do navegador.
+
+| Método | Rota | Resultado |
+| --- | --- | --- |
+| POST | `/api/tickets` | Cria o ticket e retorna os dados completos (201) |
+| GET | `/api/tickets?page=1&page_size=20` | Lista dentro do escopo do perfil (200) |
+
+Criação recebe `title`, `description`, `category` (`it`, `facilities`, `hr`) e
+`priority` (`low`, `medium`, `high`, `urgent`). Exige sessão e o header
+`X-CSRF-Protection: 1`. A listagem retorna `items`, `total`, `page` e `page_size`;
+o total também respeita a visibilidade do perfil. A página começa em 1, o tamanho
+padrão é 20 (máximo 100), e a ordem é data decrescente com desempate pelo número
+decrescente. Cada item inclui apenas o ID e nome do solicitante, sem e-mail ou
+informações de autenticação. A descrição completa aparece na resposta de criação,
+mas não é transportada em cada item da tabela.
+
+A arquitetura usa `models/ticket.py`, `schemas/ticket.py`, `services/ticket.py`
+e `api/routes/endpoints/tickets.py`; o router é registrado no agregador existente.
+A migração preserva usuários e sessões e vincula cada ticket ao solicitante. Não
+há edição/exclusão, filtros, alteração de status ou tela de detalhes/histórico
+nesta etapa. A especificação aprovada está em
+`docs/specs/004-ticket-creation-and-listing.md`.
+
+Para conferir manualmente, abra tickets em duas contas de funcionário e uma de
+suporte. Cada funcionário deve ver apenas seus registros; o suporte deve ver
+os três conjuntos. Recrie os containers e confira que os registros permanecem.
+
+## Seed manual de demonstração
+
+O seed cria ou restaura seis contas e cria três tickets, um para cada funcionário.
+Não roda na inicialização e não altera a estrutura do banco.
+
+Configure `SEED_PASSWORD` no `.env` da raiz com a senha comum de demonstração
+(de 12 a 128 caracteres). Não preencha esse valor nos `.env.example` versionados.
+Depois execute:
+
+```powershell
+docker compose up --build -d
+docker compose exec backend python -m app.db.seed
+```
+
+O primeiro comando atualiza o ambiente do container e aplica migrações pendentes.
+Para execução sem Docker, configure também `SEED_PASSWORD` em `backend/.env` e,
+no diretório backend, use `.\.venv\Scripts\python.exe -m app.db.seed`.
+
+| Nome | E-mail | Perfil | Ticket de exemplo |
+| --- | --- | --- | --- |
+| Funcionário 1 | funcionario1@gmail.com | Funcionário | TI: acesso ao e-mail (Alta) |
+| Funcionário 2 | funcionario2@gmail.com | Funcionário | Instalações: ar-condicionado (Média) |
+| Funcionário 3 | funcionario3@gmail.com | Funcionário | RH: solicitação de férias (Baixa) |
+| Suporte 1 | suporte1@gmail.com | Suporte | Nenhum |
+| Suporte 2 | suporte2@gmail.com | Suporte | Nenhum |
+| Suporte 3 | suporte3@gmail.com | Suporte | Nenhum |
+
+Todas as seis contas usam a senha definida em `SEED_PASSWORD`, armazenada no
+banco com Argon2id e um salt independente por conta. Os três tickets começam
+como Aberto. Cada funcionário verá seu ticket; suporte verá os três.
+
+Reexecutar o seed restaura nome, perfil, senha e estado ativo apenas dessas seis
+contas e encerra suas sessões anteriores. Faça login novamente depois do seed.
+Outras contas e suas sessões são preservadas. Tickets de exemplo são identificados
+pelo solicitante e título fixo com prefixo `[DEMO]`; não são duplicados nas próximas
+execuções e seus dados/status existentes são preservados. Se um título de exemplo
+for alterado diretamente no banco, ele deixa de ser identificado como o mesmo
+exemplo e o seed poderá criar o título original novamente.
+
+A operação é transacional: qualquer falha reverte todas as alterações daquele
+comando. Execute um seed por vez. As contas de demonstração são para desenvolvimento
+e não devem ser usadas em produção. A senha do seed é independente das senhas de
+acesso ao MySQL; ela serve somente para login nas contas acima.
