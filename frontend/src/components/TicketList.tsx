@@ -4,10 +4,10 @@ import { categoryLabels, getTickets, priorityLabels, sortLabels } from '../ticke
 import type { MoveTicket, TicketFilters, TicketPage } from '../tickets'
 import TicketStatusControl from './TicketStatusControl'
 
-type Props = { page: number; filters: TicketFilters; refresh: number; onPageChange: (page: number) => void; onSessionExpired: () => void; canEdit: boolean; movingId: number | null; onMove: MoveTicket }
+type Props = { page: number; filters: TicketFilters; refresh: number; onPageChange: (page: number) => void; onSessionExpired: () => void; canEdit: boolean; movingId: number | null; onMove: MoveTicket; onOpen: (id: number) => void }
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
-export default function TicketList({ page, filters, refresh, onPageChange, onSessionExpired, canEdit, movingId, onMove }: Props) {
+export default function TicketList({ page, filters, refresh, onPageChange, onSessionExpired, canEdit, movingId, onMove, onOpen }: Props) {
   const [data, setData] = useState<TicketPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,9 +53,13 @@ export default function TicketList({ page, filters, refresh, onPageChange, onSes
         <caption className="sr-only">Tickets: {sortLabels[filters.sort]}</caption>
         <thead><tr><th scope="col">Número</th><th scope="col">Título</th><th scope="col">Solicitante</th>
           <th scope="col">Categoria</th><th scope="col">Prioridade</th><th scope="col">Status</th><th scope="col">Criado em</th></tr></thead>
-        <tbody>{data.items.map(ticket => <tr key={ticket.id}>
+        <tbody>{data.items.map(ticket => <tr key={ticket.id} className="ticket-row" onClick={event => {
+          if ((event.target as HTMLElement).closest('button, select, a')) return
+          event.currentTarget.querySelector<HTMLButtonElement>('.ticket-open')?.focus()
+          onOpen(ticket.id)
+        }}>
           <td className="ticket-number">#{ticket.id}</td>
-          <td className="ticket-title">{ticket.title}</td>
+          <td className="ticket-title"><button className="ticket-open" onClick={() => onOpen(ticket.id)}>{ticket.title}</button></td>
           <td className="requester-name">{ticket.requester.name}</td>
           <td>{categoryLabels[ticket.category]}</td>
           <td><span className={`badge priority-${ticket.priority}`}>{priorityLabels[ticket.priority]}</span></td>

@@ -101,3 +101,45 @@ tbody tr:last-child td { border-bottom: 0; }
 .card-move { width: 100%; text-align: left; font-size: 11px; padding: 9px; margin-top: 14px; }
 .column-empty { font-size: 12px; color: #526573; line-height: 1.6; padding: 16px 0; }
 .load-more { width: 100%; font-size: 12px; padding: 10px; }
+.ticket-row { cursor: pointer; }
+.ticket-row:hover { background: #f6faf9; }
+.ticket-open { background: transparent; color: #165a54; padding: 0; text-align: left; font: inherit; font-weight: 650; overflow-wrap: anywhere; }
+.ticket-open:hover { text-decoration: underline; }
+.ticket-dialog { width: min(920px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 40px); padding: 0; border: 1px solid #c7d5dc; border-radius: 16px; color: #182b37; box-shadow: 0 20px 90px #102a4140; }
+.ticket-dialog[open] { display: flex; flex-direction: column; }
+.ticket-dialog::backdrop { background: #132d40a6; }
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 22px 28px; border-bottom: 1px solid #dde5e9; }
+.detail-header h2 { font-size: 24px; overflow-wrap: anywhere; }
+.detail-header .eyebrow { margin-top: 0; }
+.detail-header button { flex-shrink: 0; }
+.detail-scroll { padding: 24px 28px; overflow-y: auto; overscroll-behavior: contain; }
+.detail-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.detail-fields > div { overflow-wrap: anywhere; }
+.detail-label { display: block; margin-bottom: 7px; color: #526573; font-size: 12px; font-weight: 650; }
+.description-heading { margin-top: 28px; font-size: 17px; }
+.plain-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.detail-description { margin-bottom: 30px; }
+.detail-tabs { display: flex; gap: 8px; border-bottom: 1px solid #dde5e9; margin-bottom: 20px; }
+.detail-tabs button { color: #526573; background: transparent; border-radius: 0; border-bottom: 3px solid transparent; }
+.detail-tabs button[aria-selected="true"] { color: #165a54; border-bottom-color: #165a54; font-weight: 650; }
+.comment-form { display: grid; gap: 12px; margin-bottom: 24px; }
+.comment-form button { justify-self: end; }
+.activity-list { list-style: none; margin: 0; padding: 0; }
+.activity-list li { padding: 18px 0; border-bottom: 1px solid #e5ecef; }
+.activity-list p { margin-bottom: 0; }
+.activity-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 13px; }
+.activity-meta time { color: #526573; font-size: 12px; }
+@media (max-width: 600px) { .ticket-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); } .detail-header, .detail-scroll { padding: 18px; } .detail-header h2 { font-size: 20px; } .detail-fields { grid-template-columns: 1fr; gap: 16px; } }
+
+.assignee-picker { position: relative; width: 100%; min-width: 0; }
+.assignee-trigger { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 100%; padding: 6px 8px; margin: 0; background: transparent; color: #182b37; font-weight: 700; text-align: left; line-height: 1.5; }
+.assignee-trigger:hover, .assignee-trigger[aria-expanded="true"] { background: #edf3f4; }
+.assignee-trigger > span:first-child { flex: 1; min-width: 0; white-space: normal; word-break: normal; overflow-wrap: break-word; }
+.assignee-chevron { flex: 0 0 auto; color: #526573; font-size: 12px; }
+.assignee-menu { position: absolute; z-index: 2; top: calc(100% + 10px); right: 0; width: min(300px, calc(100vw - 80px)); max-height: 280px; overflow-y: auto; padding: 6px; border: 1px solid #c7d5dc; border-radius: 10px; background: white; box-shadow: 0 8px 28px #182b3726; }
+.assignee-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px; border-radius: 5px; background: transparent; color: #182b37; text-align: left; font-size: 13px; overflow-wrap: anywhere; }
+.assignee-menu button:hover:not(:disabled), .assignee-menu button:focus-visible { background: #edf3f4; outline-offset: -3px; }
+.assignee-menu button[aria-checked="true"] { color: #165a54; background: #edf8f2; }
+.assignee-menu-label { margin-top: 6px; padding: 12px 10px 6px; border-top: 1px solid #e5ecef; color: #526573; font-size: 11px; font-weight: 650; }
+.assignee-menu-message { padding: 4px 10px; font-size: 12px; color: #526573; }
+@media (max-width: 600px) { .assignee-menu { left: 0; right: auto; } }

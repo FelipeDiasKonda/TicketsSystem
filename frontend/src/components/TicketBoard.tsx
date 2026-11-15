@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DragEvent } from 'react'
 import { ApiError } from '../api'
 import { categoryLabels, getTickets, nextTicketStatus, priorityLabels, statusLabels, ticketStatuses } from '../tickets'
@@ -6,13 +6,14 @@ import type { MoveTicket, TicketFilters, TicketStatus, TicketSummary } from '../
 
 type Props = {
   filters: TicketFilters; refresh: number; canEdit: boolean; movingId: number | null
-  onMove: MoveTicket; onSessionExpired: () => void
+  onMove: MoveTicket; onSessionExpired: () => void; onOpen: (id: number) => void
 }
 type ColumnProps = Props & {
   status: TicketStatus; dragged: TicketSummary | null; onDrag: (ticket: TicketSummary | null) => void
 }
 
-function BoardColumn({ status, filters, canEdit, movingId, onMove, onSessionExpired, dragged, onDrag }: ColumnProps) {
+function BoardColumn({ status, filters, canEdit, movingId, onMove, onSessionExpired, dragged, onDrag, onOpen }: ColumnProps) {
+  const dragOccurred = useRef(false)
   const [items, setItems] = useState<TicketSummary[]>([])
   const [total, setTotal] = useState<number | null>(null)
   const [page, setPage] = useState(1)
@@ -62,14 +63,21 @@ function BoardColumn({ status, filters, canEdit, movingId, onMove, onSessionExpi
       const draggable = canEdit && Boolean(next) && movingId === null
       return <article key={ticket.id} className={`ticket-card${draggable ? ' draggable' : ''}`}
         data-ticket-id={ticket.id} draggable={draggable}
+        onPointerDown={() => { dragOccurred.current = false }}
+        onClick={event => {
+          if (dragOccurred.current || (event.target as HTMLElement).closest('button')) return
+          event.currentTarget.querySelector<HTMLButtonElement>('.ticket-open')?.focus()
+          onOpen(ticket.id)
+        }}
         onDragStart={event => {
           if (!draggable) { event.preventDefault(); return }
           event.dataTransfer.setData('text/plain', String(ticket.id))
           event.dataTransfer.effectAllowed = 'move'
+          dragOccurred.current = true
           onDrag(ticket)
         }} onDragEnd={() => onDrag(null)}>
         <div className="card-meta"><span>#{ticket.id}</span><span>{categoryLabels[ticket.category]}</span></div>
-        <h4>{ticket.title}</h4>
+        <h4><button className="ticket-open" onClick={() => { if (!dragOccurred.current) onOpen(ticket.id) }}>{ticket.title}</button></h4>
         <p className="card-requester">{ticket.requester.name}</p>
         <div className="card-meta"><span className={`badge priority-${ticket.priority}`}>{priorityLabels[ticket.priority]}</span>
           <time dateTime={ticket.created_at}>{new Date(ticket.created_at).toLocaleDateString('pt-BR')}</time></div>

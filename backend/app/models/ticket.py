@@ -56,7 +56,12 @@ class Ticket(Base):
     )
     requester_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    requester: Mapped[User] = relationship()
+    requester: Mapped[User] = relationship(foreign_keys=[requester_id])
+    assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    assignment_version: Mapped[int] = mapped_column(default=0, server_default="0")
+    assignee: Mapped[User | None] = relationship(foreign_keys=[assignee_id])
 
 
 class HistoryEvent(StrEnum):
@@ -84,3 +89,31 @@ class TicketStatusHistory(Base):
     )
     changed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     event: Mapped[HistoryEvent] = mapped_column(enum_column(HistoryEvent, "history_event"))
+
+
+class TicketComment(Base):
+    __tablename__ = "ticket_comments"
+    __table_args__ = (Index("ix_ticket_comments_ticket_time", "ticket_id", "created_at", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"))
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    author: Mapped[User] = relationship()
+
+
+class TicketAssignmentHistory(Base):
+    __tablename__ = "ticket_assignment_history"
+    __table_args__ = (Index("ix_ticket_assignment_ticket_time", "ticket_id", "changed_at", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"))
+    previous_assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    new_assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    changed_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)

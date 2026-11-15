@@ -481,3 +481,34 @@ o navegador com `python -m playwright install chromium`. O teste cobre a seleç�
 na lista, arraste válido/inválido, alternativa por teclado, paginação de coluna,
 conflito com outra atualização, preservação de filtros e restrição de funcionário.
 As capturas de inspeção ficam no cache de testes ignorado pelo Git.
+
+### Detalhes, responsável e atividade
+
+Clique no título ou na linha de um ticket na Lista, ou no cartão no Quadro,
+para abrir os detalhes sem sair da visualização atual. O modal inclui o nome do
+**Solicitante**, descrição completa, categoria, prioridade, data, status e
+**Responsável**. Feche pelo botão ou por Esc.
+
+O suporte pode avançar o status e clicar no nome em **Responsável** para abrir
+o menu com **Atribuir a mim**, membros ativos e **Remover atribuição**. Funcionários consultam somente seus próprios
+tickets e não recebem controles de gerenciamento.
+
+A aba **Comentários** permite mensagens de texto de 1 a 5.000 caracteres do
+solicitante ou de qualquer suporte, inclusive após o fechamento. A aba
+**Histórico** mostra criação, transições de status e alterações de responsável,
+com autor e data. Ambas são paginadas, com os registros mais recentes primeiro.
+Snapshots antigos são identificados como estados observados na migração.
+
+A migração `0004` é aplicada pelo entrypoint ao atualizar os containers:
+
+```powershell
+docker compose up --build -d
+```
+
+As rotas e critérios de aceite estão em `docs/specs/008-ticket-details.md`.
+Para executar o teste isolado de navegador desta feature, após o build:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe tests/browser_details_smoke.py
+```
