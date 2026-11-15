@@ -1,192 +1,99 @@
 # Tickets System
 
-Portal de tickets de suporte interno para a avaliação técnica de Full-Stack Developer.
+## Como rodar
 
-## Escopo da v0
+Tenha o Git e o Docker Desktop instalados, com o Docker iniciado em modo de
+containers Linux. Não é necessário instalar Python, Node.js ou MySQL separadamente.
+Os comandos abaixo usam PowerShell.
 
-Estrutura inicial com React + TypeScript + Vite, FastAPI e MySQL. Inclui comunicação
-frontend/API, verificação de saúde da API e do banco e configuração do ambiente.
-As funcionalidades de tickets ainda não estão implementadas.
+1. Clone o repositório e entre na pasta:
 
-## Executar tudo com Docker
+   ```powershell
+   git clone https://github.com/FelipeDiasKonda/TicketsSystem.git
+   cd TicketsSystem
+   ```
 
-Pré-requisito: Docker Desktop instalado e iniciado, usando containers Linux e
-Docker Compose. Não é necessário instalar Python, Node.js ou MySQL na máquina.
+2. Copie o arquivo de configuração:
 
-Na raiz do projeto, no PowerShell, copie o exemplo apenas se ainda não tiver `.env`:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-```powershell
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
-docker compose up --build -d
-docker compose ps
-```
+3. Edite o `.env` da raiz e escolha o nome do banco, o usuário da aplicação
+   (diferente de `root`) e as duas senhas:
 
-O Compose inicia o MySQL, aguarda o banco ficar saudável, inicia a API e depois
-o frontend. A primeira execução pode demorar para baixar imagens e dependências.
+   ```dotenv
+   MYSQL_DATABASE=tickets_system
+   MYSQL_USER=tickets_app
+   MYSQL_PASSWORD=sua_senha_da_aplicacao
+   MYSQL_ROOT_PASSWORD=sua_senha_do_root
+   ```
 
-| Serviço | Endereço padrão |
+   Substitua os valores de exemplo pelas suas credenciais. Para rodar com Docker,
+   basta configurar esse `.env`; o backend recebe as mesmas credenciais automaticamente.
+
+4. Inicie a aplicação:
+
+   ```powershell
+   docker compose up --build -d
+   ```
+
+   Aguarde a inicialização dos serviços. As tabelas são criadas pelas migrações
+   automaticamente. A primeira execução pode demorar para baixar as dependências.
+
+Os dados ficam em um volume persistente. As credenciais do `.env` inicializam o
+MySQL somente quando esse volume está vazio; editar o arquivo depois não altera
+as senhas já salvas no banco. Não versione o `.env` com suas credenciais.
+
+## Como acessar
+
+| Serviço | Endereço |
 | --- | --- |
-| Frontend | http://localhost:5173 |
-| Saúde da API | http://localhost:8000/api/health |
-| Conexão com MySQL | http://localhost:8000/api/health/db |
+| Aplicação | http://localhost:5173 |
 | Documentação da API | http://localhost:8000/docs |
-| MySQL pelo host | 127.0.0.1:3306 |
 
-A tela inicial verifica a API. Para verificar também o banco, abra `/api/health/db`.
-Nenhuma tabela é criada nesta etapa.
+Use **Cadastre-se** para criar uma conta de Funcionário ou Suporte, ou utilize
+os dados de demonstração abaixo. Os endereços usam as portas padrão do `.env`.
 
-As configurações do Docker vêm do `.env` da raiz; não é necessário copiar os
-exemplos de `backend` e `frontend`. O backend usa `db:3306` na rede interna e o
-navegador acessa a API por `localhost`. Os arquivos `.env` locais não entram nas imagens.
+## Dados de demonstração
 
-Se ainda houver servidores locais rodando, encerre-os com `Ctrl+C` antes de subir
-os containers. Se precisar mudar as portas, configure `BACKEND_PORT`, `FRONTEND_PORT`
-ou `MYSQL_PORT` no `.env` da raiz e execute `docker compose up -d` novamente.
-Por exemplo:
+O seed é opcional. Ele cria seis contas e três tickets, um para cada funcionário,
+nas categorias TI, Instalações e RH.
+
+Defina no `.env` da raiz uma senha de demonstração com 12 a 128 caracteres:
 
 ```dotenv
-BACKEND_PORT=8001
-FRONTEND_PORT=5174
-MYSQL_PORT=3307
+SEED_PASSWORD=sua_senha_de_demonstracao
 ```
 
-Nesse caso, abra http://localhost:5174 e http://localhost:8001/docs.
-A comunicação interna com o MySQL continua usando a porta 3306.
-
-## Desenvolvimento e comandos úteis
-
-Alterações em `backend/app` e `frontend/src` são refletidas automaticamente pelos
-servidores de desenvolvimento. A detecção de mudanças usa polling para funcionar
-com os volumes no Windows. As dependências ficam nas imagens, separadas do
-`node_modules` e do ambiente Python do Windows.
-
-Depois de alterar dependências ou Dockerfiles, reconstrua as imagens:
+Depois execute na raiz:
 
 ```powershell
 docker compose up --build -d
+docker compose exec backend python -m app.db.seed
 ```
 
-Mantenha `frontend/package-lock.json` atualizado junto com `frontend/package.json`.
-O frontend instala dependências com `npm ci` durante o build.
+| Perfil | E-mails |
+| --- | --- |
+| Funcionário | `funcionario1@gmail.com`, `funcionario2@gmail.com`, `funcionario3@gmail.com` |
+| Suporte | `suporte1@gmail.com`, `suporte2@gmail.com`, `suporte3@gmail.com` |
 
-Para acompanhar os logs ou parar os serviços:
+Todas essas contas usam a senha definida em `SEED_PASSWORD`. Essa senha serve para
+login na aplicação e é independente das senhas do MySQL.
 
-```powershell
-docker compose logs -f
-docker compose down
-```
+O seed pode ser repetido sem duplicar os tickets. Ele restaura as seis contas de
+demonstração e encerra suas sessões anteriores; os demais usuários e tickets são
+preservados.
 
-O volume `mysql_data` preserva os dados entre reinicializações. Não use
-`docker compose down -v` se quiser manter os dados.
-As senhas do exemplo são exclusivamente para desenvolvimento local. As variáveis
-de inicialização do MySQL só são aplicadas quando o volume está vazio; alterar
-uma senha no `.env` não altera usuários já criados no banco.
+## Funcionalidades
 
-## Verificações pelo Docker
-
-Com os serviços em execução:
-
-```powershell
-docker compose exec backend python -m pytest
-docker compose exec backend python -m ruff check .
-docker compose exec frontend npm run build
-```
-
-Os testes cobrem a API de saúde e a resposta segura quando o banco está indisponível.
-Para conferir a integração real com MySQL:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/api/health/db
-```
-
-## Execução local opcional
-
-Para executar Python e Node fora do Docker, use Python 3.14 e Node.js 22.12+.
-Suba somente o banco e copie os exemplos locais apenas se os arquivos não existirem:
-
-```powershell
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
-if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
-if (!(Test-Path frontend/.env)) { Copy-Item frontend/.env.example frontend/.env }
-docker compose up -d db
-```
-
-No primeiro terminal:
-
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-```
-
-No segundo terminal:
-
-```powershell
-cd frontend
-npm ci
-npm run dev
-```
-
-Nessa modalidade, mantenha as credenciais e a porta em `backend/.env` alinhadas
-com o `.env` da raiz. Ajuste `frontend/.env` se mudar a porta da API.
-
-## Estrutura
-
-```text
-backend/
-  app/
-    main.py         Factory, middleware e registro do router central
-    api/routes/
-      router.py     Agregador de routers
-      endpoints/
-        health.py   Endpoints de saude
-    core/
-      config.py     Configuracao por variaveis de ambiente
-      lifespan.py   Ciclo de vida da aplicacao
-    db/
-      database.py   Engine SQLAlchemy e sessao por requisicao
-  tests/
-  Dockerfile
-frontend/
-  src/
-    api.ts          Comunicação HTTP
-    App.tsx         Tela inicial
-  Dockerfile
-compose.yaml        Frontend, API, MySQL e volume persistente
-```
-
-## Decisões e trade-offs
-
-- Frontend e backend separados em um repositório simplificam a entrega.
-- FastAPI fornece validação e documentação OpenAPI. SQLAlchemy prepara a camada
-  de persistência sem acoplar as regras de negócio ao transporte HTTP.
-- MySQL atende à persistência relacional de tickets e histórico.
-- O acesso ao banco é síncrono, executado no thread pool do FastAPI.
-- TypeScript ajuda a verificar contratos no frontend; a comunicação usa `fetch`.
-- Docker Compose fornece um ambiente de desenvolvimento completo. Vite, reload
-  do Uvicorn e dependências de teste estão incluídos; esta configuração é para
-  desenvolvimento local. Uma implantação de produção requer outra configuração.
-- Não há autenticação nesta v0.
-- Dependências Python usam intervalos de versões; gerar um lock e automatizar CI
-  são melhorias antes da entrega final. O frontend usa `package-lock.json` e `npm ci`.
-
-## Próximas etapas
-
-1. Modelar tickets e histórico de status, com migrações Alembic.
-2. Criar tickets com título, descrição, categoria e prioridade.
-3. Listar com filtros de status, categoria e prioridade e ordenação.
-4. Exigir transições: Aberto → Em andamento → Resolvido → Fechado.
-5. Exibir detalhes e histórico; testar regras e integração com MySQL.
-
-## Arquitetura e fluxo SDD
-
-O `main.py` registra o router central com prefixo `/api`. Cada funcionalidade
-expõe um `APIRouter` em `api/routes/endpoints/`, reunido por `api/routes/router.py`.
-Configuração e ciclo de vida ficam em `core/`; conexão e sessões ficam em `db/`.
-Schemas Pydantic, modelos SQLAlchemy e serviços de negócio serão adicionados
-conforme os requisitos de cada funcionalidade.
-
-Seguimos SDD: requisito → especificação e plano com critérios de aceite → aprovação
-do usuário → implementação → testes e revisão dos critérios. As orientações estão
-em `AGENTS.md`, e a primeira refatoração está em `docs/specs/001-backend-architecture.md`.
+- Cadastro e login com perfis de Funcionário e Suporte.
+- Criação de tickets com título, descrição, categoria e prioridade por ambos os perfis.
+- Funcionários visualizam seus próprios tickets; suporte visualiza todos.
+- Visualizações em lista e quadro, com filtros por status, categoria e prioridade
+  e ordenação por data ou prioridade.
+- Suporte avança o status pelo seletor ou arrastando os cartões, seguindo o fluxo
+  **Aberto → Em andamento → Resolvido → Fechado**, sem pular etapas ou voltar.
+- Modal com detalhes completos, solicitante, responsável, comentários e histórico.
+- Suporte pode atribuir tickets a si, a outro membro ativo ou remover a atribuição.
+- Funcionários comentam nos próprios tickets; suporte comenta em qualquer ticket.
