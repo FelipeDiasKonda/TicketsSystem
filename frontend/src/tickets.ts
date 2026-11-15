@@ -3,6 +3,20 @@ import { apiRequest } from './api'
 export type TicketCategory = 'it' | 'facilities' | 'hr'
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
+export type TicketSort = 'created_desc' | 'created_asc' | 'priority_desc' | 'priority_asc'
+export type TicketFilters = {
+  status: TicketStatus | ''
+  category: TicketCategory | ''
+  priority: TicketPriority | ''
+  sort: TicketSort
+}
+export const defaultTicketFilters: TicketFilters = {
+  status: '', category: '', priority: '', sort: 'created_desc',
+}
+export const sortLabels: Record<TicketSort, string> = {
+  created_desc: 'Mais recentes', created_asc: 'Mais antigos',
+  priority_desc: 'Maior prioridade', priority_asc: 'Menor prioridade',
+}
 export type TicketDraft = {
   title: string
   description: string
@@ -27,5 +41,10 @@ export const statusLabels: Record<TicketStatus, string> = { open: 'Aberto', in_p
 
 export const createTicket = (data: TicketDraft) =>
   apiRequest<Ticket>('/tickets', { method: 'POST', body: JSON.stringify(data) })
-export const getTickets = (page: number, signal: AbortSignal) =>
-  apiRequest<TicketPage>(`/tickets?page=${page}&page_size=20`, { signal })
+export function getTickets(page: number, filters: TicketFilters, signal: AbortSignal) {
+  const query = new URLSearchParams({ page: String(page), page_size: '20', sort: filters.sort })
+  if (filters.status) query.set('status', filters.status)
+  if (filters.category) query.set('category', filters.category)
+  if (filters.priority) query.set('priority', filters.priority)
+  return apiRequest<TicketPage>(`/tickets?${query}`, { signal })
+}

@@ -1,9 +1,26 @@
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_serializer
 
 from app.models.ticket import TicketCategory, TicketPriority, TicketStatus
+
+
+class TicketSort(StrEnum):
+    CREATED_DESC = "created_desc"
+    CREATED_ASC = "created_asc"
+    PRIORITY_DESC = "priority_desc"
+    PRIORITY_ASC = "priority_asc"
+
+
+class TicketListQuery(BaseModel):
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
+    status: TicketStatus | None = None
+    category: TicketCategory | None = None
+    priority: TicketPriority | None = None
+    sort: TicketSort = TicketSort.CREATED_DESC
 
 
 class TicketCreate(BaseModel):

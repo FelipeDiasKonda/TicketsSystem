@@ -47,6 +47,12 @@ h3 { margin: 0; font-size: 20px; }
 .success { color: #175e43; background: #edf8f2; border: 1px solid #c3dfce; border-radius: 8px; padding: 14px; }
 .empty-state { text-align: center; padding: 48px 16px; border: 1px dashed #c7d5dc; border-radius: 12px; margin-top: 24px; }
 .list-count { color: #526573; font-size: 13px; margin-top: 28px; }
+.ticket-filters { min-width: 0; margin: 28px 0 20px; padding: 18px; border: 1px solid #dde5e9; border-radius: 10px; background: #f8fafb; }
+.ticket-filters legend { color: #526573; font-size: 13px; font-weight: 650; padding: 0 6px; }
+.filter-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; gap: 14px; }
+.clear-filters { white-space: nowrap; }
+@media (max-width: 1000px) { .filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .clear-filters { justify-self: start; } }
+@media (max-width: 600px) { .filter-controls { grid-template-columns: minmax(0, 1fr); } }
 .table-scroll { overflow-x: auto; border: 1px solid #dde5e9; border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 860px; }
 th { background: #f7f9fa; color: #526573; font-size: 12px; font-weight: 650; text-align: left; white-space: nowrap; }
