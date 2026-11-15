@@ -175,9 +175,8 @@ compose.yaml        Frontend, API, MySQL e volume persistente
 
 ## Próximas etapas
 
-1. Adicionar filtros de status, categoria e prioridade e ordenação configurável.
-2. Implementar transições: Aberto → Em andamento → Resolvido → Fechado.
-3. Exibir detalhes e histórico de status; testar as regras e a integração com MySQL.
+1. Implementar transições: Aberto → Em andamento → Resolvido → Fechado.
+2. Exibir detalhes e histórico de status; testar as regras e a integração com MySQL.
 
 ## Arquitetura e fluxo SDD
 
@@ -328,16 +327,16 @@ status e data de criação no horário local do navegador.
 Criação recebe `title`, `description`, `category` (`it`, `facilities`, `hr`) e
 `priority` (`low`, `medium`, `high`, `urgent`). Exige sessão e o header
 `X-CSRF-Protection: 1`. A listagem retorna `items`, `total`, `page` e `page_size`;
-o total também respeita a visibilidade do perfil. A página começa em 1, o tamanho
-padrão é 20 (máximo 100), e a ordem é data decrescente com desempate pelo número
-decrescente. Cada item inclui apenas o ID e nome do solicitante, sem e-mail ou
+o total também respeita a visibilidade do perfil e os filtros ativos. A página
+começa em 1, o tamanho padrão é 20 (máximo 100), e a ordem padrão é data decrescente
+com desempate pelo número decrescente. Cada item inclui apenas o ID e nome do solicitante, sem e-mail ou
 informações de autenticação. A descrição completa aparece na resposta de criação,
 mas não é transportada em cada item da tabela.
 
 A arquitetura usa `models/ticket.py`, `schemas/ticket.py`, `services/ticket.py`
 e `api/routes/endpoints/tickets.py`; o router é registrado no agregador existente.
 A migração preserva usuários e sessões e vincula cada ticket ao solicitante. Não
-há edição/exclusão, filtros, alteração de status ou tela de detalhes/histórico
+há edição/exclusão, alteração de status ou tela de detalhes/histórico
 nesta etapa. A especificação aprovada está em
 `docs/specs/004-ticket-creation-and-listing.md`.
 
@@ -388,3 +387,34 @@ A operação é transacional: qualquer falha reverte todas as alterações daque
 comando. Execute um seed por vez. As contas de demonstração são para desenvolvimento
 e não devem ser usadas em produção. A senha do seed é independente das senhas de
 acesso ao MySQL; ela serve somente para login nas contas acima.
+
+## Filtragem e ordenação de tickets
+
+Acima da tabela, use **Status**, **Categoria**, **Prioridade** e **Ordenação**.
+Os filtros podem ser combinados e são aplicados no banco antes da paginação,
+junto da regra de visibilidade do usuário. O total exibido considera esses filtros.
+Cada alteração volta à página 1; os filtros permanecem nas páginas seguintes.
+
+**Limpar filtros** remove as três condições e restaura a ordem de mais recentes.
+A ordenação oferece Mais recentes, Mais antigos, Maior prioridade e Menor
+prioridade. Prioridades seguem a sequência Baixa < Média < Alta < Urgente.
+Empates de prioridade usam data e número decrescentes. Ordenação por data usa o
+número na mesma direção como desempate, garantindo estabilidade entre páginas.
+
+| Parâmetro opcional | Valores |
+| --- | --- |
+| `status` | `open`, `in_progress`, `resolved`, `closed` |
+| `category` | `it`, `facilities`, `hr` |
+| `priority` | `low`, `medium`, `high`, `urgent` |
+| `sort` | `created_desc` (padrão), `created_asc`, `priority_desc`, `priority_asc` |
+
+Exemplo: `GET /api/tickets?status=open&category=it&priority=high&sort=priority_desc&page=1&page_size=20`.
+Omita um filtro para incluir todos os valores; valores inválidos ou vazios retornam
+422. A resposta mantém `items`, `total`, `page` e `page_size`. Não há migração para
+esta entrega. A atualização de status continua sendo uma funcionalidade futura;
+por enquanto os tickets criados pela aplicação começam como Aberto.
+
+Ao criar um ticket, a lista é atualizada na primeira página mantendo os filtros.
+Se o novo ticket não corresponder às condições atuais, a confirmação avisa que ele
+não aparece nessa seleção. Requisições antigas são canceladas ao mudar os controles.
+A especificação está em `docs/specs/006-ticket-filters.md`.
