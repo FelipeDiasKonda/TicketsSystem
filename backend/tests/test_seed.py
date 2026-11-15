@@ -11,10 +11,12 @@ from app.db.database import Base, get_db
 from app.main import create_app
 from app.models import (
     AuthSession,
+    HistoryEvent,
     Ticket,
     TicketCategory,
     TicketPriority,
     TicketStatus,
+    TicketStatusHistory,
     User,
     UserRole,
 )
@@ -49,6 +51,8 @@ def test_seed_is_repeatable_with_three_tickets_owned_by_employees(seed_context):
         users = db.scalars(select(User)).all()
         tickets = db.scalars(select(Ticket)).all()
         assert len(users) == 6 and len(tickets) == 3
+        history = db.scalars(select(TicketStatusHistory)).all()
+        assert len(history) == 3 and all(row.event == HistoryEvent.CREATED for row in history)
         assert sum(user.role == UserRole.EMPLOYEE for user in users) == 3
         assert sum(user.role == UserRole.SUPPORT for user in users) == 3
         assert {user.email for user in users} == {

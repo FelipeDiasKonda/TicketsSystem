@@ -1,5 +1,12 @@
 from app.models.auth import AuthSession, User, UserRole
-from app.models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus
+from app.models.ticket import (
+    HistoryEvent,
+    Ticket,
+    TicketCategory,
+    TicketPriority,
+    TicketStatus,
+    TicketStatusHistory,
+)
 
 __all__ = [
     "AuthSession",
@@ -9,4 +16,6 @@ __all__ = [
     "TicketCategory",
     "TicketPriority",
     "TicketStatus",
+    "TicketStatusHistory",
+    "HistoryEvent",
 ]

@@ -34,7 +34,7 @@ o frontend. A primeira execução pode demorar para baixar imagens e dependênci
 | MySQL pelo host | 127.0.0.1:3306 |
 
 A tela inicial verifica a API. Para verificar também o banco, abra `/api/health/db`.
-As migrações criam as tabelas de usuários, sessões e tickets antes de iniciar a API.
+As migrações criam as tabelas de usuários, sessões, tickets e histórico antes de iniciar a API.
 
 As configurações do Docker vêm do `.env` da raiz; não é necessário copiar os
 exemplos de `backend` e `frontend`. O script também sincroniza `backend/.env`
@@ -175,8 +175,8 @@ compose.yaml        Frontend, API, MySQL e volume persistente
 
 ## Próximas etapas
 
-1. Implementar transições: Aberto → Em andamento → Resolvido → Fechado.
-2. Exibir detalhes e histórico de status; testar as regras e a integração com MySQL.
+1. Exibir detalhes do ticket e o histórico completo de status.
+2. Ampliar testes de integração e preparar configuração para produção.
 
 ## Arquitetura e fluxo SDD
 
@@ -336,8 +336,8 @@ mas não é transportada em cada item da tabela.
 A arquitetura usa `models/ticket.py`, `schemas/ticket.py`, `services/ticket.py`
 e `api/routes/endpoints/tickets.py`; o router é registrado no agregador existente.
 A migração preserva usuários e sessões e vincula cada ticket ao solicitante. Não
-há edição/exclusão, alteração de status ou tela de detalhes/histórico
-nesta etapa. A especificação aprovada está em
+há edição/exclusão ou tela de detalhes/histórico. O gerenciamento de status
+e o quadro foram adicionados em uma entrega posterior, descrita abaixo. A especificação aprovada está em
 `docs/specs/004-ticket-creation-and-listing.md`.
 
 Para conferir manualmente, abra tickets em duas contas de funcionário e uma de
@@ -411,10 +411,73 @@ número na mesma direção como desempate, garantindo estabilidade entre página
 Exemplo: `GET /api/tickets?status=open&category=it&priority=high&sort=priority_desc&page=1&page_size=20`.
 Omita um filtro para incluir todos os valores; valores inválidos ou vazios retornam
 422. A resposta mantém `items`, `total`, `page` e `page_size`. Não há migração para
-esta entrega. A atualização de status continua sendo uma funcionalidade futura;
-por enquanto os tickets criados pela aplicação começam como Aberto.
+a entrega de filtros. Tickets novos começam como Aberto; a atualização de status
+e o quadro estão descritos na seção seguinte.
 
 Ao criar um ticket, a lista é atualizada na primeira página mantendo os filtros.
 Se o novo ticket não corresponder às condições atuais, a confirmação avisa que ele
 não aparece nessa seleção. Requisições antigas são canceladas ao mudar os controles.
 A especificação está em `docs/specs/006-ticket-filters.md`.
+
+## Fluxo de status e quadro de tickets
+
+Atualize os serviços normalmente para aplicar a migração `0003` do histórico:
+
+```powershell
+docker compose up --build -d
+```
+
+Use **Lista / Quadro** acima da listagem. Na lista, membros do suporte podem abrir
+um seletor de status que oferece apenas a próxima etapa. No quadro, podem arrastar
+um cartão para a próxima coluna destacada ou usar **Avançar para ...**, também
+operável por teclado e toque. Funcionários consultam os próprios tickets nas duas
+visualizações, mas não podem mover cartões nem alterar status. Suporte consulta
+e gerencia todos os tickets, incluindo os que abriu.
+
+O fluxo é estrito: **Aberto → Em andamento → Resolvido → Fechado**. Não permite
+pular etapas, voltar, reabrir ou alterar tickets fechados. A regra é validada no
+backend. O cartão permanece na origem até a confirmação da API. Falhas são exibidas;
+conflitos recarregam os dados para refletir uma alteração feita por outra pessoa.
+
+`PATCH /api/tickets/{id}/status` exige sessão de suporte e `X-CSRF-Protection: 1`.
+O corpo contém `expected_status` (o estado que a tela mostrou) e `status` (o próximo).
+Exemplo: `{"expected_status":"open","status":"in_progress"}`. Respostas: 200 com
+o ticket atualizado, 403 para funcionário/CSRF, 404 para inexistente, 409 para
+transição inválida ou estado desatualizado e 422 para dados inválidos.
+
+A atualização usa condição por ID e status esperado para evitar sobrescrita por
+uma requisição concorrente. A transição e seu registro em `ticket_status_history`
+são confirmados na mesma transação. O histórico armazena estado anterior/novo,
+responsável, data UTC e tipo de evento. Tickets novos (inclusive no seed) registram
+`created`; mudanças registram `transition`. A migração registra o estado observado
+dos tickets existentes como `snapshot`, sem inventar responsável ou mudanças
+anteriores. A exibição completa desse histórico fica para a feature de detalhes.
+
+Cada coluna consulta `GET /api/tickets` com seu próprio status e paginação de 20,
+mostra o total e oferece **Carregar mais**. O quadro não se limita à primeira
+página global da lista. Filtros e ordenação são preservados ao alternar visualização.
+As quatro colunas permanecem visíveis: com um filtro de status, as outras ficam
+vazias, mas continuam como destinos válidos de uma transição. Nesse caso, o ticket
+movido pode sair da seleção atual. Atualizar status recarrega os dados e o quadro
+volta aos primeiros 20 itens por coluna. Dados de solicitações antigas são descartados.
+
+A especificação aprovada está em `docs/specs/007-ticket-status.md`.
+
+### Teste opcional no navegador
+
+Além de `pytest` e do build do frontend, há um smoke test real no Chrome/Chromium.
+Ele intercepta as chamadas da API e as encaminha a um FastAPI com SQLite em memória;
+nunca acessa o banco ou as sessões da aplicação em execução. Construa o frontend
+primeiro (`npm run build` em frontend) e, no diretório backend, execute:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-browser.txt
+.\.venv\Scripts\python.exe tests/browser_status_smoke.py
+```
+
+No Windows ele usa o Chrome instalado no caminho padrão. Para outro executável,
+configure `BROWSER_EXECUTABLE`; sem executável definido em outros sistemas, instale
+o navegador com `python -m playwright install chromium`. O teste cobre a seleção
+na lista, arraste válido/inválido, alternativa por teclado, paginação de coluna,
+conflito com outra atualização, preservação de filtros e restrição de funcionário.
+As capturas de inspeção ficam no cache de testes ignorado pelo Git.

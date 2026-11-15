@@ -13,6 +13,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.services.ticket import record_ticket_creation
 
 
 @dataclass(frozen=True)
@@ -85,15 +86,15 @@ def seed_demo_data(db: Session, password: str | None) -> SeedResult:
                         )
                     )
                     if existing is None:
-                        db.add(
-                            Ticket(
-                                title=title,
-                                description=description,
-                                category=category,
-                                priority=priority,
-                                status=TicketStatus.OPEN,
-                                requester_id=user.id,
-                            )
+                        ticket = Ticket(
+                            title=title,
+                            description=description,
+                            category=category,
+                            priority=priority,
+                            status=TicketStatus.OPEN,
+                            requester_id=user.id,
                         )
+                        db.add(ticket)
+                        record_ticket_creation(db, ticket)
                         tickets_created += 1
     return SeedResult(created, updated, tickets_created)
