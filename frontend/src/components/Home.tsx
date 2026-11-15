@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { ApiError } from '../api'
 import { roleLabels } from '../auth'
 import type { User } from '../auth'
-import { defaultTicketFilters } from '../tickets'
-import type { Ticket, TicketFilters as Filters } from '../tickets'
+import { defaultTicketFilters, statusLabels, updateTicketStatus } from '../tickets'
+import type { Ticket, TicketFilters as Filters, TicketStatus, TicketSummary } from '../tickets'
 import TicketForm from './TicketForm'
 import TicketList from './TicketList'
 import TicketFilters from './TicketFilters'
+import TicketBoard from './TicketBoard'
 
 type Props = {
   user: User
@@ -16,6 +18,10 @@ type Props = {
 }
 
 export default function Home({ user, onLogout, busy, error, onSessionExpired }: Props) {
+  const [view, setView] = useState<'list' | 'board'>('list')
+  const [movingId, setMovingId] = useState<number | null>(null)
+  const [moveError, setMoveError] = useState('')
+  const moving = useRef(false)
   const [showForm, setShowForm] = useState(false)
   const [page, setPage] = useState(1)
   const [refresh, setRefresh] = useState(0)
@@ -25,6 +31,27 @@ export default function Home({ user, onLogout, busy, error, onSessionExpired }: 
   function changeFilters(next: Filters) {
     setFilters(next)
     setPage(1)
+  }
+
+  async function moveTicket(ticket: TicketSummary, status: TicketStatus) {
+    if (moving.current || user.role !== 'support') return
+    moving.current = true
+    setMovingId(ticket.id)
+    setMoveError('')
+    setSuccess('')
+    try {
+      const updated = await updateTicketStatus(ticket, status)
+      const hidden = filters.status && filters.status !== updated.status
+      setSuccess(`Ticket #${ticket.id} atualizado para ${statusLabels[updated.status]}.${hidden ? ' Ele saiu do filtro de status atual.' : ''}`)
+      setRefresh(value => value + 1)
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.status === 401) { onSessionExpired(); return }
+      setMoveError(failure instanceof Error ? failure.message : 'Não foi possível atualizar o status.')
+      // A timeout may occur after the server commits; reload instead of guessing the state.
+      if (failure instanceof ApiError && (failure.status === 409 || failure.status === 0)) {
+        setRefresh(value => value + 1)
+      }
+    } finally { moving.current = false; setMovingId(null) }
   }
 
   function created(ticket: Ticket) {
@@ -53,10 +80,20 @@ export default function Home({ user, onLogout, busy, error, onSessionExpired }: 
         </div>
         {!showForm && <button onClick={() => { setSuccess(''); setShowForm(true) }}>+ Novo ticket</button>}
       </div>
+      {moveError && <p role="alert" className="error">{moveError}</p>}
       {success && <p role="status" className="success">{success}</p>}
       {showForm && <TicketForm onCreated={created} onCancel={() => setShowForm(false)} onSessionExpired={onSessionExpired} />}
       <TicketFilters value={filters} onChange={changeFilters} />
-      <TicketList page={page} filters={filters} refresh={refresh} onPageChange={setPage} onSessionExpired={onSessionExpired} />
+      <div className="view-switch" role="group" aria-label="Visualização de tickets">
+        <button type="button" className="secondary" aria-pressed={view === 'list'} onClick={() => setView('list')}>Lista</button>
+        <button type="button" className="secondary" aria-pressed={view === 'board'} onClick={() => setView('board')}>Quadro</button>
+      </div>
+      {view === 'list'
+        ? <TicketList page={page} filters={filters} refresh={refresh} onPageChange={setPage}
+            onSessionExpired={onSessionExpired} canEdit={user.role === 'support'} movingId={movingId} onMove={moveTicket} />
+        : <TicketBoard filters={filters} refresh={refresh} onSessionExpired={onSessionExpired}
+            canEdit={user.role === 'support'} movingId={movingId} onMove={moveTicket} />}
+
     </section>
   </>
 }

@@ -33,6 +33,15 @@ export type TicketSummary = {
   created_at: string
 }
 export type Ticket = TicketSummary & { description: string }
+export type MoveTicket = (ticket: TicketSummary, status: TicketStatus) => Promise<void>
+export const ticketStatuses: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed']
+export const nextTicketStatus: Partial<Record<TicketStatus, TicketStatus>> = {
+  open: 'in_progress', in_progress: 'resolved', resolved: 'closed',
+}
+export const updateTicketStatus = (ticket: TicketSummary, status: TicketStatus) =>
+  apiRequest<Ticket>(`/tickets/${ticket.id}/status`, {
+    method: 'PATCH', body: JSON.stringify({ expected_status: ticket.status, status }),
+  })
 export type TicketPage = { items: TicketSummary[]; total: number; page: number; page_size: number }
 
 export const categoryLabels: Record<TicketCategory, string> = { it: 'TI', facilities: 'Instalações', hr: 'RH' }

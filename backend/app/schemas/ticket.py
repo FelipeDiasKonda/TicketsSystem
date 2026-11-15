@@ -35,6 +35,13 @@ class TicketCreate(BaseModel):
     priority: TicketPriority
 
 
+class TicketStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_status: TicketStatus
+    status: TicketStatus
+
+
 class TicketRequester(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

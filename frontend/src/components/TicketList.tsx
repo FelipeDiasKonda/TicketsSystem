@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { ApiError } from '../api'
-import { categoryLabels, getTickets, priorityLabels, sortLabels, statusLabels } from '../tickets'
-import type { TicketFilters, TicketPage } from '../tickets'
+import { categoryLabels, getTickets, priorityLabels, sortLabels } from '../tickets'
+import type { MoveTicket, TicketFilters, TicketPage } from '../tickets'
+import TicketStatusControl from './TicketStatusControl'
 
-type Props = { page: number; filters: TicketFilters; refresh: number; onPageChange: (page: number) => void; onSessionExpired: () => void }
+type Props = { page: number; filters: TicketFilters; refresh: number; onPageChange: (page: number) => void; onSessionExpired: () => void; canEdit: boolean; movingId: number | null; onMove: MoveTicket }
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
-export default function TicketList({ page, filters, refresh, onPageChange, onSessionExpired }: Props) {
+export default function TicketList({ page, filters, refresh, onPageChange, onSessionExpired, canEdit, movingId, onMove }: Props) {
   const [data, setData] = useState<TicketPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -19,7 +20,10 @@ export default function TicketList({ page, filters, refresh, onPageChange, onSes
     setLoading(true)
     setError('')
     getTickets(page, filters, controller.signal).then(result => {
-      if (active) setData(result)
+      if (!active) return
+      const lastPage = Math.max(1, Math.ceil(result.total / result.page_size))
+      if (page > lastPage) { onPageChange(lastPage); return }
+      setData(result)
     }).catch(failure => {
       if (!active) return
       if (failure instanceof ApiError && failure.status === 401) { onSessionExpired(); return }
@@ -29,7 +33,7 @@ export default function TicketList({ page, filters, refresh, onPageChange, onSes
       if (active) setLoading(false)
     })
     return () => { active = false; window.clearTimeout(timeout); controller.abort() }
-  }, [page, filters, refresh, retry, onSessionExpired])
+  }, [page, filters, refresh, retry, onSessionExpired, onPageChange])
 
   if (loading) return <p role="status" className="muted">Carregando tickets…</p>
   if (error) return <div><p role="alert" className="error">{error}</p>
@@ -55,7 +59,7 @@ export default function TicketList({ page, filters, refresh, onPageChange, onSes
           <td className="requester-name">{ticket.requester.name}</td>
           <td>{categoryLabels[ticket.category]}</td>
           <td><span className={`badge priority-${ticket.priority}`}>{priorityLabels[ticket.priority]}</span></td>
-          <td><span className="badge status-badge">{statusLabels[ticket.status]}</span></td>
+          <td><TicketStatusControl ticket={ticket} canEdit={canEdit} movingId={movingId} onMove={onMove} /></td>
           <td className="ticket-date"><time dateTime={ticket.created_at}>{dateFormat.format(new Date(ticket.created_at))}</time></td>
         </tr>)}</tbody>
       </table>

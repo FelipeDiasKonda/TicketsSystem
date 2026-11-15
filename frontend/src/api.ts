@@ -13,7 +13,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       signal: init.signal ?? AbortSignal.timeout(10000),
       headers: {
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(init.method === 'POST' ? { 'X-CSRF-Protection': '1' } : {}),
+        ...(['POST', 'PATCH', 'PUT', 'DELETE'].includes(init.method?.toUpperCase() ?? '') ? { 'X-CSRF-Protection': '1' } : {}),
         ...init.headers,
       },
     })

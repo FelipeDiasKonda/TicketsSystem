@@ -57,3 +57,30 @@ class Ticket(Base):
     requester_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     requester: Mapped[User] = relationship()
+
+
+class HistoryEvent(StrEnum):
+    CREATED = "created"
+    TRANSITION = "transition"
+    SNAPSHOT = "snapshot"
+
+
+class TicketStatusHistory(Base):
+    __tablename__ = "ticket_status_history"
+    __table_args__ = (Index("ix_ticket_history_ticket_time", "ticket_id", "changed_at", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"))
+    previous_status: Mapped[TicketStatus | None] = mapped_column(
+        enum_column(TicketStatus, "history_previous_status"),
+        nullable=True,
+    )
+    new_status: Mapped[TicketStatus] = mapped_column(
+        enum_column(TicketStatus, "history_new_status")
+    )
+    changed_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    event: Mapped[HistoryEvent] = mapped_column(enum_column(HistoryEvent, "history_event"))
