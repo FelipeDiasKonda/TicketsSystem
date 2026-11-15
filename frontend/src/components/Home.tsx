@@ -8,6 +8,7 @@ import TicketForm from './TicketForm'
 import TicketList from './TicketList'
 import TicketFilters from './TicketFilters'
 import TicketBoard from './TicketBoard'
+import TicketDetailsModal from './TicketDetailsModal'
 
 type Props = {
   user: User
@@ -19,6 +20,7 @@ type Props = {
 
 export default function Home({ user, onLogout, busy, error, onSessionExpired }: Props) {
   const [view, setView] = useState<'list' | 'board'>('list')
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [movingId, setMovingId] = useState<number | null>(null)
   const [moveError, setMoveError] = useState('')
   const moving = useRef(false)
@@ -90,9 +92,12 @@ export default function Home({ user, onLogout, busy, error, onSessionExpired }: 
       </div>
       {view === 'list'
         ? <TicketList page={page} filters={filters} refresh={refresh} onPageChange={setPage}
-            onSessionExpired={onSessionExpired} canEdit={user.role === 'support'} movingId={movingId} onMove={moveTicket} />
+            onSessionExpired={onSessionExpired} canEdit={user.role === 'support'} movingId={movingId} onMove={moveTicket} onOpen={setSelectedId} />
         : <TicketBoard filters={filters} refresh={refresh} onSessionExpired={onSessionExpired}
-            canEdit={user.role === 'support'} movingId={movingId} onMove={moveTicket} />}
+            canEdit={user.role === 'support'} movingId={movingId} onMove={moveTicket} onOpen={setSelectedId} />}
+      {selectedId !== null && <TicketDetailsModal key={selectedId} ticketId={selectedId} user={user}
+        onClose={() => setSelectedId(null)} onChanged={() => setRefresh(value => value + 1)}
+        onSessionExpired={onSessionExpired} />}
 
     </section>
   </>

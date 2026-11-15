@@ -23,6 +23,8 @@ def test_migration_upgrade_matches_models_and_can_downgrade():
             "alembic_version",
             "tickets",
             "ticket_status_history",
+            "ticket_comments",
+            "ticket_assignment_history",
         }
         assert compare_metadata(MigrationContext.configure(connection), Base.metadata) == []
         command.downgrade(config, "base")
