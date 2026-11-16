@@ -260,8 +260,9 @@ def test_assignment_audit_failure_rolls_back(details_context):
 
     event.listen(engine, "before_cursor_execute", fail)
     try:
-        with pytest.raises(OperationalError):
-            assign(client, ticket_id, users[2].id)
+        response = assign(client, ticket_id, users[2].id)
+        assert response.status_code == 500
+        assert response.json() == {"detail": "An unexpected error occurred."}
     finally:
         event.remove(engine, "before_cursor_execute", fail)
     db.expire_all()

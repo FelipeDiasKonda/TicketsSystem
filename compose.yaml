@@ -3,18 +3,20 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      DATABASE_HOST: db
-      DATABASE_PORT: 3306
-      DATABASE_NAME: ${MYSQL_DATABASE:-tickets_system}
-      DATABASE_USER: ${MYSQL_USER:-tickets_app}
-      DATABASE_PASSWORD: ${MYSQL_PASSWORD:?Run scripts/Initialize-Env.ps1 first}
-      CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-5173}","http://127.0.0.1:${FRONTEND_PORT:-5173}"]'
+      APP_NAME: ${APP_NAME:?Set APP_NAME in .env}
+      DATABASE_HOST: ${DATABASE_HOST:?Set DATABASE_HOST in .env}
+      DATABASE_PORT: ${DATABASE_PORT:?Set DATABASE_PORT in .env}
+      DATABASE_NAME: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      DATABASE_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env}
       WATCHFILES_FORCE_POLLING: "true"
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      SESSION_HOURS: ${SESSION_HOURS:-8}
-      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:?Set SESSION_COOKIE_NAME in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:?Set COOKIE_SECURE in .env}
+      SESSION_HOURS: ${SESSION_HOURS:?Set SESSION_HOURS in .env}
+      SEED_PASSWORD: ${SEED_PASSWORD?Define SEED_PASSWORD in .env (may be empty)}
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:?Set BACKEND_PORT in .env}:8000"
     volumes:
       - ./backend/app:/app/app
       - ./backend/tests:/app/tests
@@ -34,9 +36,9 @@ services:
     build: ./frontend
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}
+      VITE_API_URL: http://localhost:${BACKEND_PORT:?Set BACKEND_PORT in .env}
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
+      - "127.0.0.1:${FRONTEND_PORT:?Set FRONTEND_PORT in .env}:5173"
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
@@ -56,12 +58,12 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-tickets_system}
-      MYSQL_USER: ${MYSQL_USER:-tickets_app}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run scripts/Initialize-Env.ps1 first}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run scripts/Initialize-Env.ps1 first}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
     ports:
-      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+      - "127.0.0.1:${MYSQL_PORT:?Set MYSQL_PORT in .env}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:

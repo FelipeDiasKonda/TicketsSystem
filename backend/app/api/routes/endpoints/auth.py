@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.api.dependencies import CurrentUser, Database, require_csrf
 from app.core.config import get_settings
 from app.schemas.auth import LoginRequest, RegisterRequest, UserResponse
 from app.services.auth import (
-    DuplicateEmailError,
-    InvalidCredentialsError,
     authenticate_user,
     create_session,
     register_user,
@@ -34,10 +32,7 @@ def set_session_cookie(response: Response, token: str) -> None:
     "/register", response_model=UserResponse, status_code=201, dependencies=write_dependencies
 )
 def register(data: RegisterRequest, request: Request, response: Response, db: Database):
-    try:
-        user = register_user(db, data)
-    except DuplicateEmailError:
-        raise HTTPException(status_code=409, detail="This email is already registered.") from None
+    user = register_user(db, data)
     settings = get_settings()
     token = create_session(
         db,
@@ -51,10 +46,7 @@ def register(data: RegisterRequest, request: Request, response: Response, db: Da
 
 @router.post("/login", response_model=UserResponse, dependencies=write_dependencies)
 def login(data: LoginRequest, request: Request, response: Response, db: Database):
-    try:
-        user = authenticate_user(db, str(data.email), data.password)
-    except InvalidCredentialsError:
-        raise HTTPException(status_code=401, detail="Invalid email or password.") from None
+    user = authenticate_user(db, str(data.email), data.password)
     settings = get_settings()
     token = create_session(
         db,

@@ -8,6 +8,13 @@ if (!(Test-Path -LiteralPath $envPath)) {
 }
 $values = Read-ProjectEnv $envPath
 $updates = [ordered]@{}
+$template = Read-ProjectEnv (Join-Path $projectRoot '.env.example')
+foreach ($key in $template.Keys) {
+    if (!$values.Contains($key)) {
+        $values[$key] = $template[$key]
+        $updates[$key] = $template[$key]
+    }
+}
 foreach ($key in @('MYSQL_PASSWORD', 'MYSQL_ROOT_PASSWORD')) {
     if (!$values.Contains($key) -or [string]::IsNullOrWhiteSpace($values[$key])) {
         $updates[$key] = New-ProjectPassword

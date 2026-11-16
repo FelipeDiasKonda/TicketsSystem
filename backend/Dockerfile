@@ -6,8 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt requirements-dev.txt ./
-RUN python -m pip install -r requirements-dev.txt
+COPY requirements.txt ./
+RUN python -m pip install -r requirements.txt
 
 COPY pyproject.toml ./
 COPY app ./app

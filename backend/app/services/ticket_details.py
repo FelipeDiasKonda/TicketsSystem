@@ -1,6 +1,8 @@
 from sqlalchemy import func, literal, select, union_all, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.errors import AssignmentConflictError, InvalidAssigneeError, TicketNotFoundError
+from app.core.observability import logged_operation
 from app.models.auth import User, UserRole
 from app.models.ticket import Ticket, TicketAssignmentHistory, TicketComment, TicketStatusHistory
 from app.schemas.ticket_details import (
@@ -11,17 +13,9 @@ from app.schemas.ticket_details import (
     HistoryPage,
     PageQuery,
 )
-from app.services.ticket import TicketNotFoundError
 
 
-class AssignmentConflictError(Exception):
-    pass
-
-
-class InvalidAssigneeError(Exception):
-    pass
-
-
+@logged_operation
 def get_ticket(db: Session, actor: User, ticket_id: int) -> Ticket:
     scope = [] if actor.role == UserRole.SUPPORT else [Ticket.requester_id == actor.id]
     ticket = db.scalar(
@@ -35,6 +29,7 @@ def get_ticket(db: Session, actor: User, ticket_id: int) -> Ticket:
     return ticket
 
 
+@logged_operation
 def list_support_members(db: Session) -> list[User]:
     return list(
         db.scalars(
@@ -45,6 +40,7 @@ def list_support_members(db: Session) -> list[User]:
     )
 
 
+@logged_operation
 def assign_ticket(db: Session, actor: User, ticket_id: int, data: AssignmentUpdate) -> Ticket:
     ticket = get_ticket(db, actor, ticket_id)
     if ticket.assignment_version != data.expected_assignment_version:
@@ -87,6 +83,7 @@ def assign_ticket(db: Session, actor: User, ticket_id: int, data: AssignmentUpda
     return get_ticket(db, actor, ticket_id)
 
 
+@logged_operation
 def add_comment(db: Session, actor: User, ticket_id: int, data: CommentCreate) -> TicketComment:
     get_ticket(db, actor, ticket_id)
     comment = TicketComment(ticket_id=ticket_id, author_id=actor.id, body=data.body)
@@ -100,6 +97,7 @@ def add_comment(db: Session, actor: User, ticket_id: int, data: CommentCreate) -
     return comment
 
 
+@logged_operation
 def list_comments(db: Session, actor: User, ticket_id: int, query: PageQuery) -> CommentPage:
     get_ticket(db, actor, ticket_id)
     scope = TicketComment.ticket_id == ticket_id
@@ -115,6 +113,7 @@ def list_comments(db: Session, actor: User, ticket_id: int, query: PageQuery) ->
     return CommentPage(items=items, total=total, **query.model_dump())
 
 
+@logged_operation
 def list_history(db: Session, actor: User, ticket_id: int, query: PageQuery) -> HistoryPage:
     ticket = get_ticket(db, actor, ticket_id)
     # Page the combined timeline in SQL rather than loading entire histories in memory.

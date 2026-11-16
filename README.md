@@ -31,6 +31,10 @@ Os comandos abaixo usam PowerShell.
 
    Substitua os valores de exemplo pelas suas credenciais. Para rodar com Docker,
    basta configurar esse `.env`; o backend recebe as mesmas credenciais automaticamente.
+   Mantenha as demais chaves do exemplo: todas as configurações do backend vêm do
+   ambiente. No Docker, `DATABASE_HOST=db` e `DATABASE_PORT=3306` apontam para o
+   MySQL interno. Se mudar `FRONTEND_PORT`, ajuste também `CORS_ORIGINS`.
+   `SEED_PASSWORD` pode ficar vazio enquanto o seed não for utilizado.
 
 4. Inicie a aplicação:
 

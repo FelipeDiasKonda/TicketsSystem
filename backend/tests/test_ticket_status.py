@@ -183,8 +183,9 @@ def test_failed_history_insert_rolls_back_status(status_context):
 
     event.listen(engine, "before_cursor_execute", fail_history)
     try:
-        with pytest.raises(OperationalError):
-            change(client, ticket_id, "open", "in_progress")
+        response = change(client, ticket_id, "open", "in_progress")
+        assert response.status_code == 500
+        assert response.json() == {"detail": "An unexpected error occurred."}
     finally:
         event.remove(engine, "before_cursor_execute", fail_history)
     db.expire_all()

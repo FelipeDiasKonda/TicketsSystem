@@ -1,22 +1,20 @@
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
+from app.api.error_handlers import register_error_handlers, unexpected_error
 from app.api.routes.router import api_router
 from app.core.config import get_settings
 from app.core.lifespan import lifespan
+from app.core.observability import RequestLoggingMiddleware, configure_logging
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     settings = get_settings()
     app = FastAPI(title=settings.app_name, version="0.0.0", lifespan=lifespan)
 
-    @app.exception_handler(RequestValidationError)
-    async def validation_error(request, exc):
-        # Pydantic errors include submitted values by default, including passwords.
-        errors = [{key: error[key] for key in ("loc", "msg", "type")} for error in exc.errors()]
-        return JSONResponse(status_code=422, content={"detail": errors})
+    register_error_handlers(app)
+    app.add_middleware(RequestLoggingMiddleware, on_error=unexpected_error)
 
     app.add_middleware(
         CORSMiddleware,

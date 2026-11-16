@@ -1,14 +1,14 @@
 """Database/service integration checks that also run without local network sockets."""
 
 import pytest
-from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import event, func, select
 from sqlalchemy.exc import OperationalError
 from test_ticket_details import details_domain as domain_fixture
 
 from app.api.dependencies import require_support
-from app.api.routes.endpoints.ticket_details import ticket_action
+from app.api.error_handlers import error_status
+from app.core.errors import AppError
 from app.main import create_app
 from app.models import TicketAssignmentHistory, TicketStatusHistory
 from app.schemas.ticket import TicketStatusUpdate
@@ -37,9 +37,9 @@ def test_service_details_permissions_and_members(details_domain):
     for operation in (service.get_ticket,):
         with pytest.raises(TicketNotFoundError):
             operation(db, users[1], ticket_id)
-    with pytest.raises(HTTPException) as denied:
+    with pytest.raises(AppError) as denied:
         require_support(users[0])
-    assert denied.value.status_code == 403
+    assert error_status(denied.value) == 403
 
 
 def test_service_assignment_conflicts_and_combined_timeline(details_domain):
@@ -220,9 +220,9 @@ def test_service_error_translation_and_openapi_contract(details_domain):
             409,
         ),
     ):
-        with pytest.raises(HTTPException) as error:
-            ticket_action(action)
-        assert error.value.status_code == status
+        with pytest.raises(AppError) as error:
+            action()
+        assert error_status(error.value) == status
     paths = create_app().openapi()["paths"]
     assert "get" in paths["/api/tickets/{ticket_id}"]
     assert {"get", "post"} <= paths["/api/tickets/{ticket_id}/comments"].keys()

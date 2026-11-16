@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from app.api.dependencies import CurrentUser, Database, require_csrf, require_support
 from app.models.auth import User
@@ -12,8 +12,6 @@ from app.schemas.ticket import (
     TicketStatusUpdate,
 )
 from app.services.ticket import (
-    StatusConflictError,
-    TicketNotFoundError,
     create_ticket,
     list_tickets,
     update_ticket_status,
@@ -51,11 +49,6 @@ def change_status(
     db: Database,
     response: Response,
 ):
-    try:
-        ticket = update_ticket_status(db, ticket_id, user, data)
-    except TicketNotFoundError:
-        raise HTTPException(status_code=404, detail="Ticket not found.") from None
-    except StatusConflictError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from None
+    ticket = update_ticket_status(db, ticket_id, user, data)
     response.headers["Cache-Control"] = "no-store"
     return ticket
