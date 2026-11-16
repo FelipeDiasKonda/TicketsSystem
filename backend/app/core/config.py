@@ -13,17 +13,39 @@ class Settings(BaseSettings):
         hide_input_in_errors=True,
     )
 
-    app_name: str = "Tickets System API"
-    database_host: str = "127.0.0.1"
-    database_port: int = 3306
-    database_name: str = "tickets_system"
-    database_user: str = "tickets_app"
+    app_name: str
+    database_host: str
+    database_port: int = Field(ge=1, le=65535)
+    database_name: str
+    database_user: str
     database_password: SecretStr
-    cors_origins: list[str] = ["http://localhost:5173"]
-    session_cookie_name: str = "tickets_session"
-    session_hours: int = Field(default=8, ge=1, le=168)
-    cookie_secure: bool = False
-    seed_password: SecretStr | None = None
+    cors_origins: list[str] = Field(min_length=1)
+    session_cookie_name: str
+    session_hours: int = Field(ge=1, le=168)
+    cookie_secure: bool
+    seed_password: SecretStr | None
+
+    @field_validator(
+        "app_name", "database_host", "database_name", "database_user", "session_cookie_name"
+    )
+    @classmethod
+    def require_nonempty_setting(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Configuration value must not be empty")
+        return value.strip()
+
+    @field_validator("cors_origins")
+    @classmethod
+    def require_nonempty_origins(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() for value in values):
+            raise ValueError("CORS origins must not be empty")
+        return values
+
+    @field_validator("seed_password", mode="before")
+    @classmethod
+    def allow_disabled_seed(cls, value):
+        # The ENV key is required; an empty value explicitly disables seed credentials.
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("database_password", mode="before")
     @classmethod

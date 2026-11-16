@@ -9,9 +9,11 @@ from pathlib import Path
 from threading import Thread
 from urllib.parse import urlsplit
 
+from environment import configure_test_environment
+
 BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
-os.environ["DATABASE_PASSWORD"] = "browser-fixture-not-used"
+configure_test_environment()
 
 from fastapi.testclient import TestClient  # noqa: E402
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
