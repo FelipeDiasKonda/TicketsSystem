@@ -35,43 +35,50 @@ export default function TicketList({ page, filters, refresh, onPageChange, onSes
     return () => { active = false; window.clearTimeout(timeout); controller.abort() }
   }, [page, filters, refresh, retry, onSessionExpired, onPageChange])
 
-  if (loading) return <p role="status" className="muted">Carregando tickets…</p>
-  if (error) return <div><p role="alert" className="error">{error}</p>
-    <button type="button" className="secondary" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></div>
-  if (!data) return null
   const hasFilters = Boolean(filters.status || filters.category || filters.priority)
-  if (data.total === 0) return <div className="empty-state">
-    <h3>{hasFilters ? 'Nenhum ticket encontrado' : 'Nenhum ticket por aqui'}</h3>
-    <p className="muted">{hasFilters ? 'Ajuste ou limpe os filtros para ver outros tickets.' : 'Novas solicitações aparecerão nesta lista.'}</p>
-  </div>
+  const pages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1
 
-  const pages = Math.max(1, Math.ceil(data.total / data.page_size))
   return <>
-    <p className="list-count" role="status">{data.total} {data.total === 1 ? 'ticket encontrado' : 'tickets encontrados'}</p>
+    {!loading && !error && data && data.total > 0 && <p className="list-count" role="status">
+      {data.total} {data.total === 1 ? 'ticket encontrado' : 'tickets encontrados'}
+    </p>}
     <div className="table-scroll" role="region" aria-label="Lista de tickets" tabIndex={0}>
       <table>
         <caption className="sr-only">Tickets: {sortLabels[filters.sort]}</caption>
         <thead><tr><th scope="col">Número</th><th scope="col">Título</th><th scope="col">Solicitante</th>
           <th scope="col">Categoria</th><th scope="col">Prioridade</th><th scope="col">Status</th><th scope="col">Criado em</th></tr></thead>
-        <tbody>{data.items.map(ticket => <tr key={ticket.id} className="ticket-row" onClick={event => {
-          if ((event.target as HTMLElement).closest('button, select, a')) return
-          event.currentTarget.querySelector<HTMLButtonElement>('.ticket-open')?.focus()
-          onOpen(ticket.id)
-        }}>
-          <td className="ticket-number">#{ticket.id}</td>
-          <td className="ticket-title"><button className="ticket-open" onClick={() => onOpen(ticket.id)}>{ticket.title}</button></td>
-          <td className="requester-name">{ticket.requester.name}</td>
-          <td>{categoryLabels[ticket.category]}</td>
-          <td><span className={`badge priority-${ticket.priority}`}>{priorityLabels[ticket.priority]}</span></td>
-          <td><TicketStatusControl ticket={ticket} canEdit={canEdit} movingId={movingId} onMove={onMove} /></td>
-          <td className="ticket-date"><time dateTime={ticket.created_at}>{dateFormat.format(new Date(ticket.created_at))}</time></td>
-        </tr>)}</tbody>
+        <tbody>
+          {loading ? <tr><td colSpan={7} role="status" className="muted">Carregando tickets…</td></tr>
+            : error ? <tr><td colSpan={7}>
+              <p role="alert" className="error">{error}</p>
+              <button type="button" className="secondary" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button>
+            </td></tr>
+            : data?.total === 0 ? <tr><td colSpan={7}>
+              <div className="empty-state">
+                <h3>{hasFilters ? 'Nenhum ticket encontrado' : 'Nenhum ticket por aqui'}</h3>
+                <p className="muted">{hasFilters ? 'Ajuste ou limpe os filtros para ver outros tickets.' : 'Novas solicitações aparecerão nesta lista.'}</p>
+              </div>
+            </td></tr>
+            : data ? data.items.map(ticket => <tr key={ticket.id} className="ticket-row" onClick={event => {
+                if ((event.target as HTMLElement).closest('button, select, a')) return
+                event.currentTarget.querySelector<HTMLButtonElement>('.ticket-open')?.focus()
+                onOpen(ticket.id)
+              }}>
+                <td className="ticket-number">#{ticket.id}</td>
+                <td className="ticket-title"><button className="ticket-open" onClick={() => onOpen(ticket.id)}>{ticket.title}</button></td>
+                <td className="requester-name">{ticket.requester.name}</td>
+                <td>{categoryLabels[ticket.category]}</td>
+                <td><span className={`badge priority-${ticket.priority}`}>{priorityLabels[ticket.priority]}</span></td>
+                <td><TicketStatusControl ticket={ticket} canEdit={canEdit} movingId={movingId} onMove={onMove} /></td>
+                <td className="ticket-date"><time dateTime={ticket.created_at}>{dateFormat.format(new Date(ticket.created_at))}</time></td>
+              </tr>) : null}
+        </tbody>
       </table>
     </div>
-    <nav className="pagination" aria-label="Paginação de tickets">
+    {!loading && !error && data && data.total > 0 && <nav className="pagination" aria-label="Paginação de tickets">
       <span>Página {data.page} de {pages}</span>
       <div><button className="secondary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Anterior</button>
         <button className="secondary" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Próxima</button></div>
-    </nav>
+    </nav>}
   </>
 }
