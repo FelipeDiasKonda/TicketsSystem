@@ -34,24 +34,28 @@ export default function TicketActivity({ ticketId, tab, onSessionExpired }: Prop
     }).finally(() => { window.clearTimeout(timer); if (active) setLoading(false) })
     return () => { active = false; window.clearTimeout(timer); controller.abort() }
   }, [ticketId, tab, page, retry, onSessionExpired])
-  if (loading) return <p role="status">Carregando atividade…</p>
-  if (error) return <div><p role="alert" className="error">{error}</p>
-    <button className="secondary" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></div>
-  if (!data) return null
+
   return <>
-    {!data.total && <p className="muted">{tab === 'comments' ? 'Nenhum comentário ainda.' : 'Nenhum registro.'}</p>}
-    <ol className="activity-list">
-      {data.items.map(item => <li key={item.id}>
-        <div className="activity-meta"><strong>{'body' in item ? item.author.name : item.actor?.name ?? 'Sistema'}</strong>
-          <time dateTime={'body' in item ? item.created_at : item.changed_at}>
-            {formatDate('body' in item ? item.created_at : item.changed_at)}</time></div>
-        <p className="plain-text">{'body' in item ? item.body : historyText(item)}</p>
-      </li>)}
-    </ol>
-    {data.total > data.page_size && <nav className="pagination" aria-label="Paginação da atividade">
-      <span>Página {page} de {Math.ceil(data.total / data.page_size)}</span>
-      <div><button className="secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</button>
-        <button className="secondary" disabled={page * data.page_size >= data.total} onClick={() => setPage(value => value + 1)}>Próxima</button></div>
-    </nav>}
+    {loading && <p role="status">Carregando atividade…</p>}
+    {!loading && error && <div>
+      <p role="alert" className="error">{error}</p>
+      <button className="secondary" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button>
+    </div>}
+    {!loading && !error && data && <>
+      {!data.total && <p className="muted">{tab === 'comments' ? 'Nenhum comentário ainda.' : 'Nenhum registro.'}</p>}
+      <ol className="activity-list">
+        {data.items.map(item => <li key={item.id}>
+          <div className="activity-meta"><strong>{'body' in item ? item.author.name : item.actor?.name ?? 'Sistema'}</strong>
+            <time dateTime={'body' in item ? item.created_at : item.changed_at}>
+              {formatDate('body' in item ? item.created_at : item.changed_at)}</time></div>
+          <p className="plain-text">{'body' in item ? item.body : historyText(item)}</p>
+        </li>)}
+      </ol>
+      {data.total > data.page_size && <nav className="pagination" aria-label="Paginação da atividade">
+        <span>Página {page} de {Math.ceil(data.total / data.page_size)}</span>
+        <div><button className="secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</button>
+          <button className="secondary" disabled={page * data.page_size >= data.total} onClick={() => setPage(value => value + 1)}>Próxima</button></div>
+      </nav>}
+    </>}
   </>
 }
