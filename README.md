@@ -127,7 +127,7 @@ preservados.
   impede saltos, retornos e reabertura. Esse comportamento é uma suposição adotada
   para o desafio e precisaria ser confirmado com a área de negócio em um produto real.
 - **Contexto organizacional:** considerei uma única organização. Funcionários
-  acessam os próprios tickets e suporte acessa todos; não há isolamento por empresa.
+  acessam os próprios tickets e suporte acessa todos.
 - **Persistência e sessões:** o acesso síncrono ao banco simplifica a implementação,
   e as sessões persistidas facilitam a revogação. Em contrapartida, a autenticação
   depende de uma consulta ao banco; mudanças para atender outra carga exigiriam medição.
