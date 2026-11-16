@@ -27,6 +27,8 @@ Os comandos abaixo usam PowerShell.
    MYSQL_USER=tickets_app
    MYSQL_PASSWORD=sua_senha_da_aplicacao
    MYSQL_ROOT_PASSWORD=sua_senha_do_root
+   # Caso queira usar o seed, defina a senha que os usuários de demonstração receberão (12 a 128 caracteres).
+   SEED_PASSWORD=
    ```
 
    Substitua os valores de exemplo pelas suas credenciais. Para rodar com Docker,
