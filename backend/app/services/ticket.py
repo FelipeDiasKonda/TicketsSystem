@@ -1,6 +1,8 @@
 from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.errors import StatusConflictError, TicketNotFoundError
+from app.core.observability import logged_operation
 from app.models.auth import User, UserRole
 from app.models.ticket import (
     HistoryEvent,
@@ -24,14 +26,6 @@ NEXT_STATUS = {
 }
 
 
-class TicketNotFoundError(Exception):
-    pass
-
-
-class StatusConflictError(Exception):
-    pass
-
-
 def record_ticket_creation(db: Session, ticket: Ticket) -> None:
     db.flush()
     db.add(
@@ -46,15 +40,21 @@ def record_ticket_creation(db: Session, ticket: Ticket) -> None:
     )
 
 
+@logged_operation
 def create_ticket(db: Session, user: User, data: TicketCreate) -> Ticket:
     ticket = Ticket(**data.model_dump(), requester_id=user.id, status=TicketStatus.OPEN)
-    db.add(ticket)
-    record_ticket_creation(db, ticket)
-    db.commit()
+    try:
+        db.add(ticket)
+        record_ticket_creation(db, ticket)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(ticket)
     return ticket
 
 
+@logged_operation
 def update_ticket_status(
     db: Session, ticket_id: int, actor: User, data: TicketStatusUpdate
 ) -> Ticket:
@@ -92,6 +92,7 @@ def update_ticket_status(
     return ticket
 
 
+@logged_operation
 def list_tickets(db: Session, user: User, query: TicketListQuery) -> TicketPage:
     scope = [] if user.role == UserRole.SUPPORT else [Ticket.requester_id == user.id]
     for column, value in (

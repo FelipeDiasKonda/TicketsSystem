@@ -56,6 +56,35 @@ def test_initialize_generates_independent_passwords_and_preserves_existing_value
     assert read_env(project / ".env") == root
 
 
+def test_initialize_completes_settings_without_overwriting_existing_values(project):
+    (project / ".env").write_text(
+        "APP_NAME=Custom API\nMYSQL_DATABASE=custom_db\nMYSQL_USER=custom_user\n"
+        "MYSQL_PASSWORD=fixture-app-password\nMYSQL_ROOT_PASSWORD=fixture-root-password\n"
+        "SESSION_HOURS=12\nSESSION_COOKIE_NAME=custom_session\nCOOKIE_SECURE=true\n"
+        "SEED_PASSWORD=fixture-seed-password\n",
+        encoding="utf-8",
+    )
+    result = run_script(project, "Initialize-Env.ps1")
+    assert result.returncode == 0, "Environment migration failed"
+    root = read_env(project / ".env")
+    backend = read_env(project / "backend/.env")
+    assert root["MYSQL_PASSWORD"] == backend["DATABASE_PASSWORD"] == "fixture-app-password"
+    assert root["MYSQL_ROOT_PASSWORD"] == "fixture-root-password"
+    for key in (
+        "APP_NAME",
+        "SESSION_HOURS",
+        "SESSION_COOKIE_NAME",
+        "COOKIE_SECURE",
+        "SEED_PASSWORD",
+        "CORS_ORIGINS",
+    ):
+        assert backend[key] == root[key]
+    assert backend["DATABASE_HOST"] == "127.0.0.1"
+    assert root["DATABASE_HOST"] == "db"
+    assert backend["DATABASE_NAME"] == "custom_db" and backend["DATABASE_USER"] == "custom_user"
+    assert "fixture-app-password" not in result.stdout + result.stderr
+
+
 def test_rotation_synchronizes_only_after_database_verification(project):
     assert run_script(project, "Initialize-Env.ps1").returncode == 0
     original = read_env(project / ".env")
